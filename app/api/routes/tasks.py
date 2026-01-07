@@ -3,10 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Body, HTTPException, Path, Query, status
 from sqlmodel import select
 
-from app.db.schema import Task, TaskCreate, TaskPublic, TaskUpdate
-from app.db.session import SessionDep
+from app.api.deps import SessionDep
+from app.models import Task, TaskCreate, TaskPublic, TaskUpdate
 
-router = APIRouter(prefix="/api/tasks", tags=["tasks"])
+router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 @router.post("/", response_model=TaskPublic, status_code=status.HTTP_201_CREATED)

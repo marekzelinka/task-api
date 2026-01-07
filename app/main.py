@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from app.db.session import create_db_and_tables
-from app.routers import tasks
+from .api.main import api_router
+from .core.config import config
+from .core.db import create_db_and_tables
 
 
 @asynccontextmanager
@@ -14,13 +16,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Task Management API",
-    version="0.1.0",
+    description="REST API for managing tasks",
     lifespan=lifespan,
 )
 
-app.include_router(tasks.router)
+# Set all CORS enabled origins
+if config.all_cors_origins:
+    app.add_middleware(
+        CORSMiddleware,  # ty:ignore[invalid-argument-type]
+        allow_origins=config.all_cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-
-@app.get("/", tags=["status"], description="Healthcheck endpoint for the API")
-async def read_healthcheck():
-    return {"message": "Welcome to the Task Management API"}
+app.include_router(api_router, prefix="/api")
