@@ -1,8 +1,8 @@
 start:
-    uv run uvicorn main:app
+    uv run uvicorn app.main:app
 
 dev:
-    uv run uvicorn main:app --reload
+    uv run uvicorn app.main:app --reload
 
 typecheck:
     uv run ty check
