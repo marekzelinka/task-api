@@ -3,14 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Body, HTTPException, Path, Query, status
 from sqlmodel import select
 
-from app.api.deps import SessionDep
+from app.deps import SessionDep
 from app.models import Task, TaskCreate, TaskPublic, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 @router.post("/", response_model=TaskPublic, status_code=status.HTTP_201_CREATED)
-def create_task(*, session: SessionDep, task: Annotated[TaskCreate, Body()]):
+async def create_task(*, session: SessionDep, task: Annotated[TaskCreate, Body()]):
     db_task = Task.model_validate(task)
     session.add(db_task)
     session.commit()
@@ -19,7 +19,7 @@ def create_task(*, session: SessionDep, task: Annotated[TaskCreate, Body()]):
 
 
 @router.get("/", response_model=list[TaskPublic])
-def read_tasks(
+async def read_tasks(
     *,
     session: SessionDep,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -34,18 +34,18 @@ def read_tasks(
 
 
 @router.get("/{task_id}", response_model=TaskPublic)
-def read_task(*, session: SessionDep, task_id: Annotated[str, Path()]):
+async def read_task(*, session: SessionDep, task_id: Annotated[str, Path()]):
     task = session.get(Task, task_id)
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task with ID {task_id} not found",
+            detail="Task not found",
         )
     return task
 
 
 @router.patch("/{task_id}", response_model=TaskPublic)
-def update_task(
+async def update_task(
     *,
     session: SessionDep,
     task_id: Annotated[str, Path()],
@@ -55,7 +55,7 @@ def update_task(
     if not db_task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task with ID {task_id} not found",
+            detail="Task not found",
         )
     task_data = task.model_dump(exclude_unset=True)
     db_task.sqlmodel_update(task_data)
@@ -66,12 +66,12 @@ def update_task(
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(*, session: SessionDep, task_id: Annotated[str, Path()]):
+async def delete_task(*, session: SessionDep, task_id: Annotated[str, Path()]):
     task = session.get(Task, task_id)
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task with ID {task_id} not found",
+            detail="Task not found",
         )
     session.delete(task)
     session.commit()
