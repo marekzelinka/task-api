@@ -1,6 +1,11 @@
 from typing import Annotated, Any
 
-from pydantic import AnyUrl, BeforeValidator, PostgresDsn, computed_field
+from pydantic import (
+    AnyUrl,
+    BeforeValidator,
+    PostgresDsn,
+    computed_field,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,7 +25,22 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: PostgresDsn
+    pghost: str
+    pgdatabase: str
+    pguser: str
+    pgpassword: str
+
+    @computed_field
+    @property
+    def sqlalchemy_database_uri(self) -> PostgresDsn:
+        return PostgresDsn.build(
+            scheme="postgresql+asyncpg",
+            username=self.pguser,
+            password=self.pgpassword,
+            host=self.pghost,
+            path=self.pgdatabase,
+        )
+
     cors_origins: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
 
     @computed_field

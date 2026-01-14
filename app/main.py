@@ -1,26 +1,16 @@
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import config
-from app.core.db import create_db_and_tables
 from app.deps import SessionDep
 from app.routers import tasks
-
-
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    create_db_and_tables()
-    yield
-
 
 app = FastAPI(
     title="Task Management API",
     description="REST API for managing tasks",
     version="1.0.0",
-    lifespan=lifespan,
 )
 
 # Set all CORS enabled origins

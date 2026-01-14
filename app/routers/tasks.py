@@ -19,8 +19,8 @@ async def create_task(
 ) -> Task:
     db_task = Task.model_validate(task)
     session.add(db_task)
-    session.commit()
-    session.refresh(db_task)
+    await session.commit()
+    await session.refresh(db_task)
     return db_task
 
 
@@ -35,8 +35,8 @@ async def read_tasks(
     query = select(Task)
     if completed is not None:
         query = query.where(Task.completed == completed)
-    tasks = session.exec(query.offset(offset).limit(limit)).all()
-    return tasks
+    results = await session.exec(query.offset(offset).limit(limit))
+    return results.all()
 
 
 @router.get("/{task_id}", response_model=TaskPublic)
@@ -45,7 +45,7 @@ async def read_task(
     session: SessionDep,
     task_id: Annotated[uuid.UUID, Path()],
 ) -> Task:
-    task = session.get(Task, task_id)
+    task = await session.get(Task, task_id)
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -61,7 +61,7 @@ async def update_task(
     task_id: Annotated[uuid.UUID, Path()],
     task: Annotated[TaskUpdate, Body()],
 ) -> Task:
-    db_task = session.get(Task, task_id)
+    db_task = await session.get(Task, task_id)
     if not db_task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -70,8 +70,8 @@ async def update_task(
     task_data = task.model_dump(exclude_unset=True)
     db_task.sqlmodel_update(task_data)
     session.add(db_task)
-    session.commit()
-    session.refresh(db_task)
+    await session.commit()
+    await session.refresh(db_task)
     return db_task
 
 
@@ -81,11 +81,11 @@ async def delete_task(
     session: SessionDep,
     task_id: Annotated[uuid.UUID, Path()],
 ) -> None:
-    task = session.get(Task, task_id)
+    task = await session.get(Task, task_id)
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found",
         )
-    session.delete(task)
-    session.commit()
+    await session.delete(task)
+    await session.commit()

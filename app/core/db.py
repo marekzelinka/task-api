@@ -1,9 +1,7 @@
-from sqlmodel import SQLModel, create_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import config
 
-engine = create_engine(str(config.database_url))
-
-
-def create_db_and_tables() -> None:
-    SQLModel.metadata.create_all(engine)
+engine = create_async_engine(
+    str(config.sqlalchemy_database_uri), echo=True, connect_args={"ssl": True}
+)
