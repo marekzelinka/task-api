@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, HTTPException, Path, Query, status
 from sqlmodel import select
 
-from app.deps import SessionDep
+from app.deps import CurrentUserDep, SessionDep
 from app.models import Task, TaskCreate, TaskPublic, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -15,9 +15,10 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 async def create_task(
     *,
     session: SessionDep,
+    current_user: CurrentUserDep,
     task: Annotated[TaskCreate, Body()],
 ) -> Task:
-    db_task = Task.model_validate(task)
+    db_task = Task.model_validate(task, update={"owner_id": current_user.id})
     session.add(db_task)
     await session.commit()
     await session.refresh(db_task)
@@ -28,11 +29,12 @@ async def create_task(
 async def read_tasks(
     *,
     session: SessionDep,
+    current_user: CurrentUserDep,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(gt=0)] = 100,
     completed: Annotated[bool | None, Query()] = None,
 ) -> Sequence[Task]:
-    query = select(Task)
+    query = select(Task).where(Task.owner_id == current_user.id)
     if completed is not None:
         query = query.where(Task.completed == completed)
     results = await session.exec(query.offset(offset).limit(limit))
@@ -43,9 +45,13 @@ async def read_tasks(
 async def read_task(
     *,
     session: SessionDep,
+    current_user: CurrentUserDep,
     task_id: Annotated[uuid.UUID, Path()],
 ) -> Task:
-    task = await session.get(Task, task_id)
+    results = await session.exec(
+        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
+    )
+    task = results.first()
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -58,10 +64,14 @@ async def read_task(
 async def update_task(
     *,
     session: SessionDep,
+    current_user: CurrentUserDep,
     task_id: Annotated[uuid.UUID, Path()],
     task: Annotated[TaskUpdate, Body()],
 ) -> Task:
-    db_task = await session.get(Task, task_id)
+    results = await session.exec(
+        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
+    )
+    db_task = results.first()
     if not db_task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -79,9 +89,13 @@ async def update_task(
 async def delete_task(
     *,
     session: SessionDep,
+    current_user: CurrentUserDep,
     task_id: Annotated[uuid.UUID, Path()],
 ) -> None:
-    task = await session.get(Task, task_id)
+    results = await session.exec(
+        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
+    )
+    task = results.first()
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

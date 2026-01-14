@@ -48,5 +48,8 @@ class Settings(BaseSettings):
     def all_cors_origins(self) -> list[str]:
         return [str(origin).rstrip("/") for origin in self.cors_origins]
 
+    secret_key: str
+    access_token_expire_minutes: int
+
 
 config = Settings.model_validate({})

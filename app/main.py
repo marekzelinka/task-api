@@ -5,11 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import config
 from app.deps import SessionDep
-from app.routers import tasks
+from app.routers import auth, tasks
 
 app = FastAPI(
     title="Task Management API",
-    description="REST API for managing tasks",
+    description="REST API for managing tasks.",
     version="1.0.0",
 )
 
@@ -25,6 +25,7 @@ if config.all_cors_origins:
 
 
 app.include_router(tasks.router)
+app.include_router(auth.router)
 
 
 @dataclass
