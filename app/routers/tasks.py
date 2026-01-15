@@ -34,8 +34,13 @@ class TaskView(StrEnum):
 
 
 def validate_task_filters(
-    completed: Annotated[bool | None, Query()] = None,
-    view: Annotated[TaskView | None, Query()] = None,
+    completed: Annotated[
+        bool | None, Query(description="Filter by status. Exclusive with `view`.")
+    ] = None,
+    view: Annotated[
+        TaskView | None,
+        Query(description="Filter by time prespective. Exclusive with `completed`."),
+    ] = None,
 ) -> tuple[bool | None, TaskView | None]:
     if completed is not None and view is not None:
         raise HTTPException(
@@ -50,12 +55,7 @@ async def read_tasks(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    offset: Annotated[
-        int,
-        Query(
-            ge=0,
-        ),
-    ] = 0,
+    offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(gt=0)] = 100,
     filters: Annotated[
         tuple[bool | None, TaskView | None], Depends(validate_task_filters)
