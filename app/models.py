@@ -28,6 +28,7 @@ class User(UserBase, table=True):
 
     tasks: list[Task] = Relationship(back_populates="owner", cascade_delete=True)
     projects: list[Project] = Relationship(back_populates="owner", cascade_delete=True)
+    labels: list[Label] = Relationship(back_populates="owner", cascade_delete=True)
 
 
 class UserCreate(UserBase):
@@ -64,12 +65,12 @@ class Project(ProjectBase, table=True):
         ),
     )
 
+    owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
+    owner: User = Relationship(back_populates="projects")
     tasks: list[Task] = Relationship(
         back_populates="project",
         sa_relationship_kwargs={"lazy": "selectin"},
     )
-    owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
-    owner: User = Relationship(back_populates="projects")
 
 
 class ProjectCreate(ProjectBase):
@@ -89,6 +90,15 @@ class ProjectPublicWithTasks(ProjectPublic):
 
 class ProjectUpdate(SQLModel):
     title: str | None = None
+
+
+class TaskLabelLink(SQLModel, table=True):
+    task_id: uuid.UUID = Field(
+        foreign_key="task.id", primary_key=True, ondelete="CASCADE"
+    )
+    label_id: uuid.UUID = Field(
+        foreign_key="label.id", primary_key=True, ondelete="CASCADE"
+    )
 
 
 class TaskBase(SQLModel):
@@ -117,11 +127,16 @@ class Task(TaskBase, table=True):
         ),
     )
 
+    owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
+    owner: User = Relationship(back_populates="tasks")
     project: Project | None = Relationship(
         back_populates="tasks", sa_relationship_kwargs={"lazy": "selectin"}
     )
-    owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
-    owner: User = Relationship(back_populates="tasks")
+    labels: list[Label] = Relationship(
+        back_populates="tasks",
+        link_model=TaskLabelLink,
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
 
 
 class TaskCreate(TaskBase):
@@ -144,6 +159,14 @@ class TaskPublicWithProject(TaskPublic):
     project: ProjectPublic | None = None
 
 
+class TaskPublicWithLabels(TaskPublic):
+    labels: list[LabelPublic] = []
+
+
+class TaskPublicWithProjectLabels(TaskPublicWithProject, TaskPublicWithLabels):
+    pass
+
+
 class TaskUpdate(SQLModel):
     title: str | None = None
     description: str | None = None
@@ -152,6 +175,38 @@ class TaskUpdate(SQLModel):
     due_date: datetime | None = Field(default=None)
 
     project_id: uuid.UUID | None = None
+
+
+class LabelBase(SQLModel):
+    name: str = Field(unique=True, index=True)
+
+
+class Label(LabelBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+
+    owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
+    owner: User = Relationship(back_populates="labels")
+    tasks: list[Task] = Relationship(
+        back_populates="labels",
+        link_model=TaskLabelLink,
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
+
+
+class LabelCreate(LabelBase):
+    pass
+
+
+class LabelPublic(LabelBase):
+    id: uuid.UUID
+
+
+class LabelPublicWithTasks(LabelPublic):
+    tasks: list[TaskPublic] = []
+
+
+class LabelUpdate(SQLModel):
+    name: str | None = None
 
 
 class HealthCheck(SQLModel):

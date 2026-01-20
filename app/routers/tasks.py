@@ -8,11 +8,15 @@ from sqlmodel import col, select
 
 from app.deps import CurrentUserDep, SessionDep
 from app.models import (
+    Label,
     Project,
     Task,
     TaskCreate,
+    TaskLabelLink,
     TaskPublic,
+    TaskPublicWithLabels,
     TaskPublicWithProject,
+    TaskPublicWithProjectLabels,
     TaskUpdate,
 )
 
@@ -66,6 +70,47 @@ async def create_task_copy(
     await session.refresh(new_task)
 
     return new_task
+
+
+@router.post("/{task_id}/labels/{label_id}", response_model=TaskPublicWithLabels)
+async def assign_label_to_task(
+    *,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    task_id: Annotated[uuid.UUID, Path()],
+    label_id: Annotated[uuid.UUID, Path()],
+) -> Task:
+    results = await session.exec(
+        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
+    )
+    task = results.first()
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+        )
+
+    results = await session.exec(
+        select(Label).where(Label.id == label_id, Label.owner_id == current_user.id)
+    )
+    label = results.first()
+    if not label:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Labels not found"
+        )
+
+    if label in task.labels:
+        raise HTTPException(
+            status_code=status.HTTP_304_NOT_MODIFIED,
+            detail="Label already assigned to task",
+        )
+
+    task_label_link = TaskLabelLink(task_id=task_id, label_id=label_id)
+
+    session.add(task_label_link)
+    await session.commit()
+    await session.refresh(task)
+
+    return task
 
 
 @router.get("/", response_model=list[TaskPublic])
@@ -170,7 +215,7 @@ async def read_overdue_tasks(
     return results.all()
 
 
-@router.get("/{task_id}", response_model=TaskPublicWithProject)
+@router.get("/{task_id}", response_model=TaskPublicWithProjectLabels)
 async def read_task(
     *,
     session: SessionDep,
@@ -189,7 +234,7 @@ async def read_task(
     return task
 
 
-@router.put("/{task_id}/projects/{project_id}", response_model=TaskPublicWithProject)
+@router.patch("/{task_id}/projects/{project_id}", response_model=TaskPublicWithProject)
 async def assign_task_to_project(
     *,
     session: SessionDep,
@@ -252,34 +297,16 @@ async def update_task(
     return db_task
 
 
-@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_task(
-    *,
-    session: SessionDep,
-    current_user: CurrentUserDep,
-    task_id: Annotated[uuid.UUID, Path()],
-) -> None:
-    results = await session.exec(
-        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
-    )
-    task = results.first()
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
-        )
-
-    await session.delete(task)
-    await session.commit()
-
-
-@router.delete("/{task_id}/projects/{project_id}", response_model=TaskPublicWithProject)
+@router.delete(
+    "/{task_id}/projects/{project_id}", status_code=status.HTTP_404_NOT_FOUND
+)
 async def remove_task_from_project(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
     task_id: Annotated[uuid.UUID, Path()],
     project_id: Annotated[uuid.UUID, Path()],
-) -> Task:
+) -> None:
     results = await session.exec(
         select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
     )
@@ -305,4 +332,65 @@ async def remove_task_from_project(
     await session.commit()
     await session.refresh(task)
 
-    return task
+
+@router.delete("/{task_id}/labels/{label_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_label_from_task(
+    *,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    task_id: Annotated[uuid.UUID, Path()],
+    label_id: Annotated[uuid.UUID, Path()],
+) -> None:
+    results = await session.exec(
+        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
+    )
+    task = results.first()
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+        )
+
+    results = await session.exec(
+        select(Label).where(Label.id == label_id, Label.owner_id == current_user.id)
+    )
+    label = results.first()
+    if not label:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found"
+        )
+
+    task_label_link = await session.get(
+        TaskLabelLink,
+        (
+            task_id,
+            label_id,
+        ),
+    )
+    if not task_label_link:
+        raise HTTPException(
+            status_code=status.HTTP_304_NOT_MODIFIED,
+            detail="Label wasn't assigned to task",
+        )
+
+    await session.delete(task_label_link)
+    await session.commit()
+
+
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_task(
+    *,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    task_id: Annotated[uuid.UUID, Path()],
+) -> None:
+    results = await session.exec(
+        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
+    )
+    task = results.first()
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+        )
+
+    await session.delete(task)
+    await session.commit()

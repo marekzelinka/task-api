@@ -51,8 +51,29 @@ async def read_projects(
     return results.all()
 
 
-@router.get("/{project_id}", response_model=ProjectPublicWithTasks)
+@router.get("/{project_id}", response_model=ProjectPublic)
 async def read_project(
+    *,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    project_id: Annotated[uuid.UUID, Path()],
+) -> Project:
+    results = await session.exec(
+        select(Project).where(
+            Project.id == project_id, Project.owner_id == current_user.id
+        )
+    )
+    project = results.first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
+
+    return project
+
+
+@router.get("/{project_id}/tasks", response_model=ProjectPublicWithTasks)
+async def read_project_tasks(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,

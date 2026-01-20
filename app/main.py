@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import config
 from app.deps import SessionDep
 from app.models import HealthCheck
-from app.routers import auth, projects, tasks
+from app.routers import auth, labels, projects, tasks
 
 app = FastAPI(
     title="Task Management API",
@@ -26,6 +26,7 @@ if config.all_cors_origins:
 app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(tasks.router)
+app.include_router(labels.router)
 
 
 @app.get(
