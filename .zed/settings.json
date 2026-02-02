@@ -1,9 +1,17 @@
 // For a full list of overridable settings, and general information on folder-specific settings,
 // see the documentation: https://zed.dev/docs/configuring-zed#settings-files
 {
+  "lsp": {
+    "pyrefly": {
+      "binary": {
+        "path": ".venv/bin/pyrefly",
+        "arguments": ["lsp"],
+      },
+    },
+  },
   "languages": {
     "Python": {
-      "language_servers": ["ty", "ruff"],
+      "language_servers": ["pyrefly", "ruff"],
       "formatter": [{ "language_server": { "name": "ruff" } }],
       "code_actions_on_format": {
         // Organize imports

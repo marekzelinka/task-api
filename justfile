@@ -5,7 +5,7 @@ dev:
     uv run uvicorn app.main:app --reload
 
 typecheck:
-    uv run ty check
+    uv run pyrefly check
 
 lint:
     uv run ruff check --fix
