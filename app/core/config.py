@@ -50,7 +50,8 @@ class Settings(BaseSettings):
         return [str(origin).rstrip("/") for origin in self.cors_origins]
 
     secret_key: str
-    access_token_expire_minutes: int
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
 
 
 config = Settings.model_validate({})

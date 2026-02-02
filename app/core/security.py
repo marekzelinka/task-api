@@ -8,9 +8,6 @@ from app.core.config import config
 password_hash = PasswordHash.recommended()
 
 
-ALGORITHM = "HS256"
-
-
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return password_hash.verify(plain_password, hashed_password)
 
@@ -29,14 +26,14 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         )
 
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, config.secret_key, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, config.secret_key, algorithm=config.algorithm)
 
     return encoded_jwt
 
 
 def verify_token(token: str) -> str | None:
     try:
-        payload = jwt.decode(token, config.secret_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, config.secret_key, algorithms=[config.algorithm])
         username = payload.get("sub")
         if username is None:
             return None
