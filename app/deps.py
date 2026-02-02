@@ -35,6 +35,7 @@ async def get_current_user(token: TokenDep, session: SessionDep) -> User:
         detail="Invalid authentication credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
     username = verify_token(token)
     if username is None:
         raise credentials_exception
