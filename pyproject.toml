@@ -1,5 +1,5 @@
 [project]
-name = "task-management-api"
+name = "task-api"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
