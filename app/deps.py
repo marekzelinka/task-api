@@ -3,22 +3,16 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.db import engine
+from app.core.db import async_session
 from app.core.security import verify_token
 from app.models import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 TokenDep = Annotated[str, Depends(oauth2_scheme)]
-
-
-async_session = async_sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
-)
 
 
 async def get_session() -> AsyncGenerator[AsyncSession]:
@@ -40,8 +34,7 @@ async def get_current_user(token: TokenDep, session: SessionDep) -> User:
     if username is None:
         raise credentials_exception
 
-    results = await session.exec(select(User).where(User.username == username))
-    user = results.first()
+    user = await session.scalar(select(User).where(User.username == username))
     if not user:
         raise credentials_exception
 

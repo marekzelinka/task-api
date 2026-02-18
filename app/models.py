@@ -12,20 +12,19 @@ class UserBase(SQLModel):
 
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
-
     hashed_password: str
-
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(tz=UTC),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(tz=UTC),
         sa_column=Column(
-            DateTime(timezone=True), nullable=False, onupdate=lambda: datetime.now(UTC)
+            DateTime(timezone=True),
+            nullable=False,
+            onupdate=lambda: datetime.now(tz=UTC),
         ),
     )
-
     tasks: list[Task] = Relationship(back_populates="owner", cascade_delete=True)
     projects: list[Project] = Relationship(back_populates="owner", cascade_delete=True)
     labels: list[Label] = Relationship(back_populates="owner", cascade_delete=True)
@@ -37,7 +36,6 @@ class UserCreate(UserBase):
 
 class UserPublic(UserBase):
     id: uuid.UUID
-
     created_at: datetime
     updated_at: datetime
 
@@ -53,19 +51,20 @@ class ProjectBase(SQLModel):
 
 class Project(ProjectBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
-
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(tz=UTC),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(tz=UTC),
         sa_column=Column(
-            DateTime(timezone=True), nullable=False, onupdate=lambda: datetime.now(UTC)
+            DateTime(timezone=True),
+            nullable=False,
+            onupdate=lambda: datetime.now(tz=UTC),
         ),
     )
-
     owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
+
     owner: User = Relationship(back_populates="projects")
     tasks: list[Task] = Relationship(
         back_populates="project",
@@ -79,7 +78,6 @@ class ProjectCreate(ProjectBase):
 
 class ProjectPublic(ProjectBase):
     id: uuid.UUID
-
     created_at: datetime
     updated_at: datetime
 
@@ -109,24 +107,23 @@ class TaskBase(SQLModel):
     due_date: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), index=True)
     )
-
     project_id: uuid.UUID | None = Field(default=None, foreign_key="project.id")
 
 
 class Task(TaskBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
-
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(tz=UTC),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(tz=UTC),
         sa_column=Column(
-            DateTime(timezone=True), nullable=False, onupdate=lambda: datetime.now(UTC)
+            DateTime(timezone=True),
+            nullable=False,
+            onupdate=lambda: datetime.now(tz=UTC),
         ),
     )
-
     owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
     owner: User = Relationship(back_populates="tasks")
     project: Project | None = Relationship(
@@ -143,14 +140,13 @@ class TaskCreate(TaskBase):
     @field_validator("due_date")
     @classmethod
     def check_due_date_is_future(cls, v: datetime | None) -> datetime | None:
-        if v is not None and v < datetime.now(UTC):
+        if v is not None and v < datetime.now(tz=UTC):
             raise ValueError("due_date must be in the future")
         return v
 
 
 class TaskPublic(TaskBase):
     id: uuid.UUID
-
     created_at: datetime
     updated_at: datetime
 
@@ -173,7 +169,6 @@ class TaskUpdate(SQLModel):
     priority: int | None = Field(default=None, ge=1, le=5)
     completed: bool | None = None
     due_date: datetime | None = Field(default=None)
-
     project_id: uuid.UUID | None = None
 
 
@@ -183,7 +178,6 @@ class LabelBase(SQLModel):
 
 class Label(LabelBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
-
     owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
     owner: User = Relationship(back_populates="labels")
     tasks: list[Task] = Relationship(

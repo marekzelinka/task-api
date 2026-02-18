@@ -19,9 +19,9 @@ def hash_password(password: str) -> str:
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(UTC) + expires_delta
+        expire = datetime.now(tz=UTC) + expires_delta
     else:
-        expire = datetime.now(UTC) + timedelta(
+        expire = datetime.now(tz=UTC) + timedelta(
             minutes=config.access_token_expire_minutes
         )
 

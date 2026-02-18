@@ -21,6 +21,7 @@ async def create_label(
     db_label = Label.model_validate(label, update={"owner_id": current_user.id})
 
     session.add(db_label)
+
     await session.commit()
     await session.refresh(db_label)
 
@@ -36,7 +37,7 @@ async def read_labels(
     limit: Annotated[int, Query(gt=0)] = 100,
     # TODO: add filter query `q`, to fetch labels where name contains `q`
 ) -> Sequence[Label]:
-    results = await session.exec(
+    results = await session.scalars(
         select(Label)
         .where(Label.owner_id == current_user.id)
         .offset(offset)
@@ -54,11 +55,8 @@ async def update_label(
     label_id: Annotated[uuid.UUID, Path()],
     label: Annotated[LabelUpdate, Body()],
 ) -> Label:
-    results = await session.exec(
-        select(Label).where(Label.id == label_id, Label.owner_id == current_user.id)
-    )
-    db_label = results.first()
-    if not db_label:
+    db_label = await session.get(Label, label_id)
+    if not db_label or db_label.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Label not found"
         )
@@ -67,6 +65,7 @@ async def update_label(
     db_label.sqlmodel_update(label_data)
 
     session.add(db_label)
+
     await session.commit()
     await session.refresh(db_label)
 
@@ -80,11 +79,8 @@ async def delete_label(
     current_user: CurrentUserDep,
     label_id: Annotated[uuid.UUID, Path()],
 ) -> None:
-    results = await session.exec(
-        select(Label).where(Label.id == label_id, Label.owner_id == current_user.id)
-    )
-    label = results.first()
-    if not label:
+    label = await session.get(Label, label_id)
+    if not label or label.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Label not found"
         )

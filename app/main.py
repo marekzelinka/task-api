@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
 from app.core.config import config
@@ -14,6 +13,8 @@ app = FastAPI(
 
 # Set all CORS enabled origins
 if config.all_cors_origins:
+    from fastapi.middleware.cors import CORSMiddleware
+
     app.add_middleware(
         CORSMiddleware,  # ty:ignore[invalid-argument-type]
         allow_origins=config.all_cors_origins,

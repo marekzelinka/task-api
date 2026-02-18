@@ -27,10 +27,9 @@ async def register_user(
             detail="Username already registered",
         )
 
-    hashed_password = hash_password(user.password)
     user_dict = user.model_dump()
     new_user = User.model_validate(
-        user_dict, update={"hashed_password": hashed_password}
+        user_dict, update={"hashed_password": (hash_password(user.password))}
     )
 
     session.add(new_user)
@@ -46,10 +45,7 @@ async def login_for_access_token(
     session: SessionDep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
-    results = await session.exec(
-        select(User).where(User.username == form_data.username)
-    )
-    user = results.first()
+    user = await session.scalar(select(User).where(User.username == form_data.username))
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

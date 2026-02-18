@@ -33,6 +33,7 @@ async def create_task(
     db_task = Task.model_validate(task, update={"owner_id": current_user.id})
 
     session.add(db_task)
+
     await session.commit()
     await session.refresh(db_task)
 
@@ -50,22 +51,17 @@ async def create_task_copy(
     current_user: CurrentUserDep,
     task_id: Annotated[uuid.UUID, Path()],
 ) -> Task:
-    results = await session.exec(
-        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
-    )
-    db_task = results.first()
-    if not db_task:
+    task = await session.get(Task, task_id)
+    if not task or task.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
 
-    task_data = db_task.model_dump(
-        exclude={"id", "completed", "created_at", "updated_at"}
-    )
-    copy_title = f"{task_data['title']} (Copy)"
-    new_task = Task.model_validate(task_data, update={"title": copy_title})
+    task_data = task.model_dump(exclude={"id", "completed", "created_at", "updated_at"})
 
+    new_task = Task.model_validate(task_data, update={"title": f"{task.title} (Copy)"})
     session.add(new_task)
+
     await session.commit()
     await session.refresh(new_task)
 
@@ -80,24 +76,17 @@ async def assign_label_to_task(
     task_id: Annotated[uuid.UUID, Path()],
     label_id: Annotated[uuid.UUID, Path()],
 ) -> Task:
-    results = await session.exec(
-        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
-    )
-    task = results.first()
-    if not task:
+    task = await session.get(Task, task_id)
+    if not task or task.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
 
-    results = await session.exec(
-        select(Label).where(Label.id == label_id, Label.owner_id == current_user.id)
-    )
-    label = results.first()
-    if not label:
+    label = await session.get(Label, label_id)
+    if not label or label.owner_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Labels not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Label not found"
         )
-
     if label in task.labels:
         raise HTTPException(
             status_code=status.HTTP_304_NOT_MODIFIED,
@@ -107,6 +96,7 @@ async def assign_label_to_task(
     task_label_link = TaskLabelLink(task_id=task_id, label_id=label_id)
 
     session.add(task_label_link)
+
     await session.commit()
     await session.refresh(task)
 
@@ -129,7 +119,7 @@ async def read_tasks(
     if priority is not None:
         query = query.where(Task.priority == priority)
 
-    results = await session.exec(query.offset(offset).limit(limit))
+    results = await session.scalars(query.offset(offset).limit(limit))
 
     return results.all()
 
@@ -143,18 +133,18 @@ async def read_upcomming_tasks(
     limit: Annotated[int, Query(gt=0)] = 100,
     priority: Annotated[int | None, Query(ge=1, le=5)] = None,
 ) -> Sequence[Task]:
-    now = datetime.now(UTC)
+    now = datetime.now(tz=UTC)
 
     query = (
         select(Task)
         .where(Task.owner_id == current_user.id)
         .where(col(Task.due_date) > now)
-        .where(col(Task.completed).is_(False))
+        .where(~col(Task.completed))
     )
     if priority is not None:
         query = query.where(Task.priority == priority)
 
-    results = await session.exec(
+    results = await session.scalars(
         query.order_by(col(Task.due_date).asc().nulls_last())
         .offset(offset)
         .limit(limit)
@@ -172,7 +162,7 @@ async def read_due_today_tasks(
     limit: Annotated[int, Query(gt=0)] = 100,
     priority: Annotated[int | None, Query(ge=1, le=5)] = None,
 ) -> Sequence[Task]:
-    now = datetime.now(UTC)
+    now = datetime.now(tz=UTC)
     today_end = datetime.combine(now.date(), time.max, tzinfo=UTC)
     today_start = datetime.combine(now.date(), time.min, tzinfo=UTC)
 
@@ -180,12 +170,12 @@ async def read_due_today_tasks(
         select(Task)
         .where(Task.owner_id == current_user.id)
         .where(col(Task.due_date).between(today_start, today_end))
-        .where(col(Task.completed).is_(False))
+        .where(~col(Task.completed))
     )
     if priority is not None:
         query = query.where(Task.priority == priority)
 
-    results = await session.exec(query.offset(offset).limit(limit))
+    results = await session.scalars(query.offset(offset).limit(limit))
 
     return results.all()
 
@@ -199,18 +189,18 @@ async def read_overdue_tasks(
     limit: Annotated[int, Query(gt=0)] = 100,
     priority: Annotated[int | None, Query(ge=1, le=5)] = None,
 ) -> Sequence[Task]:
-    now = datetime.now(UTC)
+    now = datetime.now(tz=UTC)
 
     query = (
         select(Task)
         .where(Task.owner_id == current_user.id)
         .where(col(Task.due_date) < now)
-        .where(col(Task.completed).is_(False))
+        .where(~col(Task.completed))
     )
     if priority is not None:
         query = query.where(Task.priority == priority)
 
-    results = await session.exec(query.offset(offset).limit(limit))
+    results = await session.scalars(query.offset(offset).limit(limit))
 
     return results.all()
 
@@ -222,11 +212,8 @@ async def read_task(
     current_user: CurrentUserDep,
     task_id: Annotated[uuid.UUID, Path()],
 ) -> Task:
-    results = await session.exec(
-        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
-    )
-    task = results.first()
-    if not task:
+    task = await session.get(Task, task_id)
+    if not task or task.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
@@ -242,22 +229,14 @@ async def assign_task_to_project(
     task_id: Annotated[uuid.UUID, Path()],
     project_id: Annotated[uuid.UUID, Path()],
 ) -> Task:
-    results = await session.exec(
-        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
-    )
-    task = results.first()
-    if not task:
+    task = await session.get(Task, task_id)
+    if not task or task.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
 
-    results = await session.exec(
-        select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
-        )
-    )
-    project = results.first()
-    if not project:
+    project = await session.get(Project, project_id)
+    if not project or project.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
@@ -278,11 +257,8 @@ async def update_task(
     task_id: Annotated[uuid.UUID, Path()],
     task: Annotated[TaskUpdate, Body()],
 ) -> Task:
-    results = await session.exec(
-        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
-    )
-    db_task = results.first()
-    if not db_task:
+    db_task = await session.get(Task, task_id)
+    if not db_task or db_task.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
@@ -291,6 +267,7 @@ async def update_task(
     db_task.sqlmodel_update(task_data)
 
     session.add(db_task)
+
     await session.commit()
     await session.refresh(db_task)
 
@@ -307,22 +284,14 @@ async def remove_task_from_project(
     task_id: Annotated[uuid.UUID, Path()],
     project_id: Annotated[uuid.UUID, Path()],
 ) -> None:
-    results = await session.exec(
-        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
-    )
-    task = results.first()
-    if not task:
+    task = await session.get(Task, task_id)
+    if not task or task.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
 
-    results = await session.exec(
-        select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
-        )
-    )
-    project = results.first()
-    if not project:
+    project = await session.get(Project, project_id)
+    if not project or project.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
@@ -341,22 +310,16 @@ async def remove_label_from_task(
     task_id: Annotated[uuid.UUID, Path()],
     label_id: Annotated[uuid.UUID, Path()],
 ) -> None:
-    results = await session.exec(
-        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
-    )
-    task = results.first()
-    if not task:
+    task = await session.get(Task, task_id)
+    if not task or task.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
 
-    results = await session.exec(
-        select(Label).where(Label.id == label_id, Label.owner_id == current_user.id)
-    )
-    label = results.first()
-    if not label:
+    label = await session.get(Label, label_id)
+    if not label or label.owner_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Label not found"
         )
 
     task_label_link = await session.get(
@@ -383,11 +346,8 @@ async def delete_task(
     current_user: CurrentUserDep,
     task_id: Annotated[uuid.UUID, Path()],
 ) -> None:
-    results = await session.exec(
-        select(Task).where(Task.id == task_id, Task.owner_id == current_user.id)
-    )
-    task = results.first()
-    if not task:
+    task = await session.get(Task, task_id)
+    if not task or task.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )

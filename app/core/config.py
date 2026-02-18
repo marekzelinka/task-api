@@ -19,12 +19,7 @@ def parse_cors(v: str | list[str] | None) -> list[str] | str:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_ignore_empty=True,
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     pg_host: str
     pg_database: str
@@ -54,4 +49,4 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
 
 
-config = Settings.model_validate({})
+config = Settings()

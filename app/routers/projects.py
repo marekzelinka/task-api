@@ -27,6 +27,7 @@ async def create_project(
     db_project = Project.model_validate(project, update={"owner_id": current_user.id})
 
     session.add(db_project)
+
     await session.commit()
     await session.refresh(db_project)
 
@@ -41,7 +42,7 @@ async def read_projects(
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(gt=0)] = 100,
 ) -> Sequence[Project]:
-    results = await session.exec(
+    results = await session.scalars(
         select(Project)
         .where(Project.owner_id == current_user.id)
         .offset(offset)
@@ -58,13 +59,8 @@ async def read_project(
     current_user: CurrentUserDep,
     project_id: Annotated[uuid.UUID, Path()],
 ) -> Project:
-    results = await session.exec(
-        select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
-        )
-    )
-    project = results.first()
-    if not project:
+    project = await session.get(Project, project_id)
+    if not project or project.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
@@ -79,13 +75,8 @@ async def read_project_tasks(
     current_user: CurrentUserDep,
     project_id: Annotated[uuid.UUID, Path()],
 ) -> Project:
-    results = await session.exec(
-        select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
-        )
-    )
-    project = results.first()
-    if not project:
+    project = await session.get(Project, project_id)
+    if not project or project.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
@@ -101,13 +92,8 @@ async def update_project(
     project_id: Annotated[uuid.UUID, Path()],
     project: Annotated[ProjectUpdate, Body()],
 ) -> Project:
-    results = await session.exec(
-        select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
-        )
-    )
-    db_project = results.first()
-    if not db_project:
+    db_project = await session.get(Project, project_id)
+    if not db_project or db_project.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
@@ -116,6 +102,7 @@ async def update_project(
     db_project.sqlmodel_update(project_data)
 
     session.add(db_project)
+
     await session.commit()
     await session.refresh(db_project)
 
@@ -129,13 +116,8 @@ async def delete_project(
     current_user: CurrentUserDep,
     project_id: Annotated[uuid.UUID, Path()],
 ) -> None:
-    results = await session.exec(
-        select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
-        )
-    )
-    project = results.first()
-    if not project:
+    project = await session.get(Project, project_id)
+    if not project or project.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
