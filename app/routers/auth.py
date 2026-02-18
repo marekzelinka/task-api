@@ -1,42 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
 
-from app.core.security import create_access_token, hash_password, verify_password
-from app.deps import CurrentUserDep, SessionDep
-from app.models import Token, User, UserCreate, UserPublic
+from app.core.security import create_access_token, verify_password
+from app.deps import SessionDep
+from app.models import Token, User
 
 router = APIRouter(tags=["auth"])
-
-
-@router.post(
-    "/register", status_code=status.HTTP_201_CREATED, response_model=UserPublic
-)
-async def register_user(
-    *,
-    session: SessionDep,
-    user: Annotated[UserCreate, Body()],
-) -> User:
-    results = await session.exec(select(User).where(User.username == user.username))
-    db_user = results.first()
-    if db_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered",
-        )
-
-    user_dict = user.model_dump()
-    new_user = User.model_validate(
-        user_dict, update={"hashed_password": (hash_password(user.password))}
-    )
-
-    session.add(new_user)
-    await session.commit()
-    await session.refresh(new_user)
-
-    return new_user
 
 
 @router.post("/token", status_code=status.HTTP_200_OK, response_model=Token)
@@ -56,8 +28,3 @@ async def login_for_access_token(
     access_token = create_access_token(data={"sub": user.username})
 
     return Token(access_token=access_token, token_type="bearer")
-
-
-@router.get("/users/me", response_model=UserPublic)
-async def read_users_me(*, current_user: CurrentUserDep) -> User:
-    return current_user

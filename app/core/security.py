@@ -1,22 +1,27 @@
 from datetime import UTC, datetime, timedelta
 
 import jwt
+from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
 
 from app.core.config import config
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+
+
 password_hash = PasswordHash.recommended()
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return password_hash.verify(plain_password, hashed_password)
 
 
 def hash_password(password: str) -> str:
     return password_hash.hash(password)
 
 
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return password_hash.verify(plain_password, hashed_password)
+
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """Create a JWT access token."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(tz=UTC) + expires_delta
@@ -26,18 +31,23 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         )
 
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, config.secret_key, algorithm=config.algorithm)
+    encoded_jwt = jwt.encode(
+        to_encode, config.secret_key.get_secret_value(), algorithm=config.algorithm
+    )
 
     return encoded_jwt
 
 
 def verify_token(token: str) -> str | None:
+    """Verify a JWT access token and return the subject (user id) if valid."""
     try:
-        payload = jwt.decode(token, config.secret_key, algorithms=[config.algorithm])
-        username = payload.get("sub")
-        if username is None:
-            return None
-
-        return username
-    except jwt.PyJWTError:
+        payload = jwt.decode(
+            token,
+            config.secret_key.get_secret_value(),
+            algorithms=[config.algorithm],
+            options={"require": ["exp", "sub"]},
+        )
+    except jwt.InvalidTokenError:
         return None
+    else:
+        return payload.get("sub")

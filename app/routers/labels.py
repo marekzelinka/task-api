@@ -11,7 +11,7 @@ from app.models import Label, LabelCreate, LabelPublic, LabelUpdate
 router = APIRouter(prefix="/labels", tags=["labels"])
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=LabelPublic)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=LabelPublic)
 async def create_label(
     *,
     session: SessionDep,
@@ -28,7 +28,7 @@ async def create_label(
     return db_label
 
 
-@router.get("/", response_model=list[LabelPublic])
+@router.get("", response_model=list[LabelPublic])
 async def read_labels(
     *,
     session: SessionDep,
@@ -43,8 +43,9 @@ async def read_labels(
         .offset(offset)
         .limit(limit)
     )
+    labels = results.all()
 
-    return results.all()
+    return labels
 
 
 @router.patch("/{label_id}", response_model=LabelPublic)

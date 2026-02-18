@@ -1,9 +1,8 @@
 from fastapi import FastAPI
 
-from app.api import api_router
 from app.core.config import config
 from app.deps import SessionDep
-from app.models import HealthCheck, Message
+from app.routers import auth, labels, projects, tasks, users
 
 app = FastAPI(
     title="Task Management API",
@@ -24,15 +23,13 @@ if config.all_cors_origins:
     )
 
 
-app.include_router(api_router)
-
-
-@app.get("/")
-async def root() -> Message:
-    """Health check endpoint for the API."""
-    return Message("Welcome to the Task Management API")
+app.include_router(auth.router)
+app.include_router(users.router)
+app.include_router(projects.router)
+app.include_router(tasks.router)
+app.include_router(labels.router)
 
 
 @app.get("/health", tags=["status"])
-async def read_health(*, _session: SessionDep) -> HealthCheck:
-    return HealthCheck(status="ok")
+async def read_health(*, _session: SessionDep) -> dict:
+    return {"status": "ok"}

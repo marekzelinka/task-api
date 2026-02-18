@@ -17,7 +17,7 @@ from app.models import (
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=ProjectPublic)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=ProjectPublic)
 async def create_project(
     *,
     session: SessionDep,
@@ -34,7 +34,7 @@ async def create_project(
     return db_project
 
 
-@router.get("/", response_model=list[ProjectPublic])
+@router.get("", response_model=list[ProjectPublic])
 async def read_projects(
     *,
     session: SessionDep,
@@ -48,8 +48,9 @@ async def read_projects(
         .offset(offset)
         .limit(limit)
     )
+    projects = results.all()
 
-    return results.all()
+    return projects
 
 
 @router.get("/{project_id}", response_model=ProjectPublic)

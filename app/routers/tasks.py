@@ -23,7 +23,7 @@ from app.models import (
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=TaskPublic)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=TaskPublic)
 async def create_task(
     *,
     session: SessionDep,
@@ -59,51 +59,19 @@ async def create_task_copy(
 
     task_data = task.model_dump(exclude={"id", "completed", "created_at", "updated_at"})
 
-    new_task = Task.model_validate(task_data, update={"title": f"{task.title} (Copy)"})
-    session.add(new_task)
+    copy_title = f"{task.title} (Copy)"
+    task_copy = Task.model_validate(task_data, update={"title": copy_title})
+
+    session.add(task_copy)
 
     await session.commit()
-    await session.refresh(new_task)
+    await session.refresh(task_copy)
 
-    return new_task
-
-
-@router.post("/{task_id}/labels/{label_id}", response_model=TaskPublicWithLabels)
-async def assign_label_to_task(
-    *,
-    session: SessionDep,
-    current_user: CurrentUserDep,
-    task_id: Annotated[uuid.UUID, Path()],
-    label_id: Annotated[uuid.UUID, Path()],
-) -> Task:
-    task = await session.get(Task, task_id)
-    if not task or task.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
-        )
-
-    label = await session.get(Label, label_id)
-    if not label or label.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Label not found"
-        )
-    if label in task.labels:
-        raise HTTPException(
-            status_code=status.HTTP_304_NOT_MODIFIED,
-            detail="Label already assigned to task",
-        )
-
-    task_label_link = TaskLabelLink(task_id=task_id, label_id=label_id)
-
-    session.add(task_label_link)
-
-    await session.commit()
-    await session.refresh(task)
-
-    return task
+    return task_copy
 
 
-@router.get("/", response_model=list[TaskPublic])
+
+@router.get("", response_model=list[TaskPublic])
 async def read_tasks(
     *,
     session: SessionDep,
@@ -120,8 +88,9 @@ async def read_tasks(
         query = query.where(Task.priority == priority)
 
     results = await session.scalars(query.offset(offset).limit(limit))
+    tasks = results.all()
 
-    return results.all()
+    return tasks
 
 
 @router.get("/upcomming", response_model=list[TaskPublic])
@@ -149,8 +118,9 @@ async def read_upcomming_tasks(
         .offset(offset)
         .limit(limit)
     )
+    upcomming_tasks = results.all()
 
-    return results.all()
+    return upcomming_tasks
 
 
 @router.get("/today", response_model=list[TaskPublic])
@@ -176,8 +146,9 @@ async def read_due_today_tasks(
         query = query.where(Task.priority == priority)
 
     results = await session.scalars(query.offset(offset).limit(limit))
+    today_tasks = results.all()
 
-    return results.all()
+    return today_tasks
 
 
 @router.get("/overdue", response_model=list[TaskPublic])
@@ -201,8 +172,9 @@ async def read_overdue_tasks(
         query = query.where(Task.priority == priority)
 
     results = await session.scalars(query.offset(offset).limit(limit))
+    overdue_tasks = results.all()
 
-    return results.all()
+    return overdue_tasks
 
 
 @router.get("/{task_id}", response_model=TaskPublicWithProjectLabels)
@@ -249,6 +221,41 @@ async def assign_task_to_project(
     return task
 
 
+@router.patch("/{task_id}/labels/{label_id}", response_model=TaskPublicWithLabels)
+async def assign_label_to_task(
+    *,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    task_id: Annotated[uuid.UUID, Path()],
+    label_id: Annotated[uuid.UUID, Path()],
+) -> Task:
+    task = await session.get(Task, task_id)
+    if not task or task.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+        )
+
+    label = await session.get(Label, label_id)
+    if not label or label.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Label not found"
+        )
+    if label in task.labels:
+        raise HTTPException(
+            status_code=status.HTTP_304_NOT_MODIFIED,
+            detail="Label already assigned to task",
+        )
+
+    task_label_link = TaskLabelLink(task_id=task_id, label_id=label_id)
+
+    session.add(task_label_link)
+
+    await session.commit()
+    await session.refresh(task)
+
+    return task
+
+
 @router.patch("/{task_id}", response_model=TaskPublicWithProject)
 async def update_task(
     *,
@@ -275,7 +282,7 @@ async def update_task(
 
 
 @router.delete(
-    "/{task_id}/projects/{project_id}", status_code=status.HTTP_404_NOT_FOUND
+    "/{task_id}/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT
 )
 async def remove_task_from_project(
     *,

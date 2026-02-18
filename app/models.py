@@ -11,20 +11,9 @@ class UserBase(SQLModel):
 
 
 class User(UserBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=UTC),
-        sa_column=Column(DateTime(timezone=True), nullable=False),
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=UTC),
-        sa_column=Column(
-            DateTime(timezone=True),
-            nullable=False,
-            onupdate=lambda: datetime.now(tz=UTC),
-        ),
-    )
+
     tasks: list[Task] = Relationship(back_populates="owner", cascade_delete=True)
     projects: list[Project] = Relationship(back_populates="owner", cascade_delete=True)
     labels: list[Label] = Relationship(back_populates="owner", cascade_delete=True)
@@ -50,26 +39,15 @@ class ProjectBase(SQLModel):
 
 
 class Project(ProjectBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(tz=UTC),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=UTC),
-        sa_column=Column(
-            DateTime(timezone=True),
-            nullable=False,
-            onupdate=lambda: datetime.now(tz=UTC),
-        ),
-    )
     owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
 
     owner: User = Relationship(back_populates="projects")
-    tasks: list[Task] = Relationship(
-        back_populates="project",
-        sa_relationship_kwargs={"lazy": "selectin"},
-    )
+    tasks: list[Task] = Relationship(back_populates="project", cascade_delete=True)
 
 
 class ProjectCreate(ProjectBase):
@@ -111,28 +89,21 @@ class TaskBase(SQLModel):
 
 
 class Task(TaskBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(tz=UTC),
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=UTC),
-        sa_column=Column(
-            DateTime(timezone=True),
-            nullable=False,
-            onupdate=lambda: datetime.now(tz=UTC),
-        ),
-    )
     owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
-    owner: User = Relationship(back_populates="tasks")
-    project: Project | None = Relationship(
-        back_populates="tasks", sa_relationship_kwargs={"lazy": "selectin"}
+    project_id: uuid.UUID | None = Field(
+        default=None, foreign_key="project.id", ondelete="CASCADE"
     )
+
+    owner: User = Relationship(back_populates="tasks")
+    project: Project | None = Relationship(back_populates="tasks")
     labels: list[Label] = Relationship(
         back_populates="tasks",
         link_model=TaskLabelLink,
-        sa_relationship_kwargs={"lazy": "selectin"},
     )
 
 
@@ -177,14 +148,11 @@ class LabelBase(SQLModel):
 
 
 class Label(LabelBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
+
     owner: User = Relationship(back_populates="labels")
-    tasks: list[Task] = Relationship(
-        back_populates="labels",
-        link_model=TaskLabelLink,
-        sa_relationship_kwargs={"lazy": "selectin"},
-    )
+    tasks: list[Task] = Relationship(back_populates="labels", link_model=TaskLabelLink)
 
 
 class LabelCreate(LabelBase):
@@ -201,15 +169,3 @@ class LabelPublicWithTasks(LabelPublic):
 
 class LabelUpdate(SQLModel):
     name: str | None = None
-
-
-class HealthCheck(SQLModel):
-    """Models a status check for our /health endpoint."""
-
-    status: str
-
-
-class Message(SQLModel):
-    """Models a generic messages, used as a response model in routes."""
-
-    message: str

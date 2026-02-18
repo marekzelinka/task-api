@@ -2,15 +2,12 @@ from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import async_session
-from app.core.security import verify_token
+from app.core.security import oauth2_scheme, verify_token
 from app.models import User
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 TokenDep = Annotated[str, Depends(oauth2_scheme)]
 

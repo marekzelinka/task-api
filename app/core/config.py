@@ -4,6 +4,7 @@ from pydantic import (
     AnyUrl,
     BeforeValidator,
     PostgresDsn,
+    SecretStr,
     computed_field,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -44,7 +45,7 @@ class Settings(BaseSettings):
     def all_cors_origins(self) -> list[str]:
         return [str(origin).rstrip("/") for origin in self.cors_origins]
 
-    secret_key: str
+    secret_key: SecretStr
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
