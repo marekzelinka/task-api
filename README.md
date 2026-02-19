@@ -1,12 +1,12 @@
 # Task management REST API
 
-Task management REST API built with **FastAPI** and **SQLModel**. This project manages a database of tasks, project, with user auth using oauth, using a robust **Python** stack designed for speed and developer ergonomics.
+Task management REST API built with **FastAPI** and **SQLAlchemy**. This project manages a database of tasks, project, with user auth using oauth, using a robust **Python** stack designed for speed and developer ergonomics.
 
 ## 🚀 Features
 
-- **High-Performance API**: Fully asynchronous endpoints leveraging `FastAPI` and `SQLModel`.
+- **High-Performance API**: Fully asynchronous endpoints leveraging `FastAPI` and `SQLAlchemy`.
 - **CRUD Operations**: Complete management for **Tasks**, **Projects**.
-- **Relational Data**: Complex relationships handled seamlessly via SQLModel.
+- **Relational Data**: Complex relationships handled seamlessly via SQLAlchemy.
 - **Auto-Generated Documentation**: Interactive API docs available via **OpenAPI (Swagger UI)**.
 - **Modern Tooling**: Managed with `uv` for lightning-fast environment and dependency resolution.
 - **Code Quality**: Strict linting and formatting using `Ruff` and type checking using `ty`.
@@ -15,7 +15,7 @@ Task management REST API built with **FastAPI** and **SQLModel**. This project m
 ## 🛠 Tech Stack
 
 - **Framework**: [FastAPI](https://fastapi.tiangolo.com/)
-- **ORM/Models**: [SQLModel](https://sqlmodel.tiangolo.com/) (Async SQLAlchemy + Pydantic)
+- **ORM/Models**: [SQLAlchemy](https://www.sqlalchemy.org/) (Async SQLAlchemy + Pydantic)
 - **Database**: [SQLite](https://sqlite.org/)
 - **Migrations**: [Alembic](https://alembic.sqlalchemy.org/)
 - **Package Manager**: [uv](https://docs.astral.sh/uv/)
@@ -102,6 +102,6 @@ Once started, access the interactive docs at: [http://localhost:8000/docs](http:
 - [x] task belong to one project
 - [x] add `due_date` to tasks
 - [ ] bulk actions for tasks, DELETE and PATCH
-- [x] explore async sqlmodel
-- [ ] Tags/Labels, table: Tag, fields:id, name, color_hex, user_id, relationship: Many-to-Many with task.
+- [x] explore async SQLAlchemy
+- [x] Tags/Labels, table: Tag, fields:id, name, color_hex, user_id, relationship: Many-to-Many with task.
 - [ ] add color hex field to project
