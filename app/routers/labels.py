@@ -18,6 +18,12 @@ async def create_label(
     current_user: CurrentUserDep,
     label: LabelCreate,
 ) -> Label:
+    existing_label = await session.scalar(select(Label).where(Label.name == label.name))
+    if existing_label:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Label already exists"
+        )
+
     db_label = Label(**label.model_dump(), owner_id=current_user.id)
 
     session.add(db_label)

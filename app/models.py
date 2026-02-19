@@ -39,12 +39,16 @@ def check_hex_color(color: str | None) -> str | None:
 
 class ProjectCreate(BaseModel):
     title: Annotated[str, Field(min_length=1, max_length=255)]
-    color: Annotated[str | None, AfterValidator(check_hex_color)] = "#ffffff"
+    color: Annotated[
+        str | None, Field(examples=["#fff", "#ffffff"]), AfterValidator(check_hex_color)
+    ] = None
 
 
 class ProjectUpdate(BaseModel):
     title: Annotated[str | None, Field(max_length=255)] = None
-    color: Annotated[str | None, AfterValidator(check_hex_color)] = None
+    color: Annotated[
+        str | None, Field(examples=["#fff", "#ffffff"]), AfterValidator(check_hex_color)
+    ] = None
 
 
 class ProjectPublic(BaseModel):
@@ -110,6 +114,9 @@ class TaskPublicWithProjectLabels(TaskPublicWithProject, TaskPublicWithLabels):
 
 class LabelBase(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=50)]
+    color: Annotated[
+        str | None, Field(examples=["#fff", "#ffffff"]), AfterValidator(check_hex_color)
+    ] = None
 
 
 class LabelCreate(LabelBase):
@@ -118,6 +125,7 @@ class LabelCreate(LabelBase):
 
 class LabelUpdate(BaseModel):
     name: Annotated[str | None, Field(max_length=50)] = None
+    color: Annotated[str | None, AfterValidator(check_hex_color)] = None
 
 
 class LabelPublic(LabelBase):

@@ -97,6 +97,7 @@ class Label(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(length=50), index=True)
+    color: Mapped[str | None] = mapped_column(String(length=7))
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
     owner: Mapped[User] = relationship(back_populates="labels")
