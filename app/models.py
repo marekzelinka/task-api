@@ -1,15 +1,10 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import Annotated
 
-from pydantic import (
-    AfterValidator,
-    BaseModel,
-    ConfigDict,
-    EmailStr,
-    Field,
-)
+from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserBase(BaseModel):
@@ -34,12 +29,22 @@ class Token(BaseModel):
     token_type: str
 
 
+def check_hex_color(color: str | None) -> str | None:
+    if color is None:
+        return None
+    if not re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", color):
+        raise ValueError("color must be in hex format (e.g., #fff or #ffffff)")
+    return color.lower()
+
+
 class ProjectCreate(BaseModel):
     title: Annotated[str, Field(min_length=1, max_length=255)]
+    color: Annotated[str | None, AfterValidator(check_hex_color)] = "#ffffff"
 
 
 class ProjectUpdate(BaseModel):
     title: Annotated[str | None, Field(max_length=255)] = None
+    color: Annotated[str | None, AfterValidator(check_hex_color)] = None
 
 
 class ProjectPublic(BaseModel):
@@ -47,6 +52,7 @@ class ProjectPublic(BaseModel):
 
     id: int
     title: str
+    color: str | None
     created_at: datetime
 
 
