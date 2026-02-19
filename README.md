@@ -1,49 +1,6 @@
-# TODO
+# Task management REST API
 
-Given your SQLModel (SQLAlchemy 2.0 based) setup, here is how the choice applies to your specific schemas:
-1. selectinload: Best for Collections
-Use this for One-to-Many (User.tasks, Project.tasks) or Many-to-Many (Task.labels).
-The Query: SQLAlchemy fetches the parent, then runs a second query: SELECT ... FROM task WHERE task.owner_id IN (...).
-Why use it here: If a User has 50 tasks, joinedload would return 50 rows, each repeating the User data (name, email, hashed_password). selectinload avoids this massive data duplication.
-python
-# Efficiently loads all tasks for the user without duplicating User data
-statement = select(User).where(User.id == user_id).options(selectinload(User.tasks))
-Use code with caution.
-
-2. joinedload: Best for References
-Use this for Many-to-One (Task.project, Task.owner).
-The Query: A single LEFT OUTER JOIN.
-Why use it here: Since a task only has one project, there is no "row explosion." You get all the data you need for TaskPublicWithProject in exactly one database round-trip.
-python
-# Perfect for Many-to-One: one row per task, including project details
-statement = select(Task).options(joinedload(Task.project))
-Use code with caution.
-
-3. Mixing for Nested Schemas
-For your complex TaskPublicWithProjectLabels schema, you should combine them for maximum efficiency:
-python
-from sqlalchemy.orm import joinedload, selectinload
-
-statement = (
-    select(Task)
-    .options(
-        joinedload(Task.project),    # Many-to-One (Single Join)
-        selectinload(Task.labels)    # Many-to-Many (Separate IN query)
-    )
-)
-Use code with caution.
-
-Key Differences Recap
-Scenario	Recommendation	Implementation
-User -> Tasks	selectinload	Collections (1:N) avoid duplicate parent data.
-Task -> Project	joinedload	References (N:1) are efficient in a single join.
-Task -> Labels	selectinload	Many-to-Many (N:M) handles link tables better.
-For a deep dive into performance tuning, check the SQLAlchemy Relationship Loading Techniques documentation or the SQLModel Tutorial on Relationships.
-Would you like a code snippet showing how to use contains_eager if you need to filter tasks by a project attribute while loading them?
-
-# Task Managment REST API
-
-A modern, high-performance async REST API built with **FastAPI** and **SQLModel**. This project manages a database of tasks, project, with user auth using oauth, using a robust **Python** stack designed for speed and developer ergonomics.
+Task management REST API built with **FastAPI** and **SQLModel**. This project manages a database of tasks, project, with user auth using oauth, using a robust **Python** stack designed for speed and developer ergonomics.
 
 ## 🚀 Features
 

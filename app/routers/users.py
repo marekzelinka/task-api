@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.core.security import hash_password
 from app.deps import CurrentUserDep, SessionDep
@@ -14,20 +14,33 @@ async def create_user(
     session: SessionDep,
     user: UserCreate,
 ) -> User:
-    results = await session.exec(select(User).where(User.username == user.username))
-    db_user = results.first()
-    if db_user:
+    duplicate_username_user = await session.scalar(
+        select(User).where(col(User.username).ilike(user.username))
+    )
+    if duplicate_username_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered",
         )
 
-    user_dict = user.model_dump()
+    duplicate_email_user = await session.scalar(
+        select(User).where(col(User.email).ilike(user.email))
+    )
+    if duplicate_email_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists"
+        )
+
     new_user = User.model_validate(
-        user_dict, update={"hashed_password": hash_password(user.password)}
+        user.model_dump(exclude={"email", "password"}),
+        update={
+            "email": user.email.lower(),
+            "hashed_password": hash_password(user.password),
+        },
     )
 
     session.add(new_user)
+
     await session.commit()
     await session.refresh(new_user)
 
