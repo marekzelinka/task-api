@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, time
 from typing import Annotated
 
-from fastapi import APIRouter, Body, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import col, select
 
 from app.deps import CurrentUserDep, SessionDep
@@ -28,7 +28,7 @@ async def create_task(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    task: Annotated[TaskCreate, Body()],
+    task: TaskCreate,
 ) -> Task:
     db_task = Task.model_validate(task, update={"owner_id": current_user.id})
 
@@ -49,7 +49,7 @@ async def create_task_copy(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    task_id: Annotated[uuid.UUID, Path()],
+    task_id: uuid.UUID,
 ) -> Task:
     task = await session.get(Task, task_id)
     if not task or task.owner_id != current_user.id:
@@ -68,7 +68,6 @@ async def create_task_copy(
     await session.refresh(task_copy)
 
     return task_copy
-
 
 
 @router.get("", response_model=list[TaskPublic])
@@ -182,7 +181,7 @@ async def read_task(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    task_id: Annotated[uuid.UUID, Path()],
+    task_id: uuid.UUID,
 ) -> Task:
     task = await session.get(Task, task_id)
     if not task or task.owner_id != current_user.id:
@@ -198,8 +197,8 @@ async def assign_task_to_project(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    task_id: Annotated[uuid.UUID, Path()],
-    project_id: Annotated[uuid.UUID, Path()],
+    task_id: uuid.UUID,
+    project_id: uuid.UUID,
 ) -> Task:
     task = await session.get(Task, task_id)
     if not task or task.owner_id != current_user.id:
@@ -226,8 +225,8 @@ async def assign_label_to_task(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    task_id: Annotated[uuid.UUID, Path()],
-    label_id: Annotated[uuid.UUID, Path()],
+    task_id: uuid.UUID,
+    label_id: uuid.UUID,
 ) -> Task:
     task = await session.get(Task, task_id)
     if not task or task.owner_id != current_user.id:
@@ -261,8 +260,8 @@ async def update_task(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    task_id: Annotated[uuid.UUID, Path()],
-    task: Annotated[TaskUpdate, Body()],
+    task_id: uuid.UUID,
+    task: TaskUpdate,
 ) -> Task:
     db_task = await session.get(Task, task_id)
     if not db_task or db_task.owner_id != current_user.id:
@@ -288,8 +287,8 @@ async def remove_task_from_project(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    task_id: Annotated[uuid.UUID, Path()],
-    project_id: Annotated[uuid.UUID, Path()],
+    task_id: uuid.UUID,
+    project_id: uuid.UUID,
 ) -> None:
     task = await session.get(Task, task_id)
     if not task or task.owner_id != current_user.id:
@@ -314,8 +313,8 @@ async def remove_label_from_task(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    task_id: Annotated[uuid.UUID, Path()],
-    label_id: Annotated[uuid.UUID, Path()],
+    task_id: uuid.UUID,
+    label_id: uuid.UUID,
 ) -> None:
     task = await session.get(Task, task_id)
     if not task or task.owner_id != current_user.id:
@@ -351,7 +350,7 @@ async def delete_task(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    task_id: Annotated[uuid.UUID, Path()],
+    task_id: uuid.UUID,
 ) -> None:
     task = await session.get(Task, task_id)
     if not task or task.owner_id != current_user.id:

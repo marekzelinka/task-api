@@ -2,7 +2,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Body, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Path, Query, status
 from sqlmodel import select
 
 from app.deps import CurrentUserDep, SessionDep
@@ -22,7 +22,7 @@ async def create_project(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    project: Annotated[ProjectCreate, Body()],
+    project: ProjectCreate,
 ) -> Project:
     db_project = Project.model_validate(project, update={"owner_id": current_user.id})
 
@@ -58,7 +58,7 @@ async def read_project(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    project_id: Annotated[uuid.UUID, Path()],
+    project_id: uuid.UUID,
 ) -> Project:
     project = await session.get(Project, project_id)
     if not project or project.owner_id != current_user.id:
@@ -74,7 +74,7 @@ async def read_project_tasks(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    project_id: Annotated[uuid.UUID, Path()],
+    project_id: uuid.UUID,
 ) -> Project:
     project = await session.get(Project, project_id)
     if not project or project.owner_id != current_user.id:
@@ -90,8 +90,8 @@ async def update_project(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    project_id: Annotated[uuid.UUID, Path()],
-    project: Annotated[ProjectUpdate, Body()],
+    project_id: uuid.UUID,
+    project: ProjectUpdate,
 ) -> Project:
     db_project = await session.get(Project, project_id)
     if not db_project or db_project.owner_id != current_user.id:

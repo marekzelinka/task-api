@@ -2,7 +2,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Body, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import select
 
 from app.deps import CurrentUserDep, SessionDep
@@ -16,7 +16,7 @@ async def create_label(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    label: Annotated[LabelCreate, Body()],
+    label: LabelCreate,
 ) -> Label:
     db_label = Label.model_validate(label, update={"owner_id": current_user.id})
 
@@ -53,8 +53,8 @@ async def update_label(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    label_id: Annotated[uuid.UUID, Path()],
-    label: Annotated[LabelUpdate, Body()],
+    label_id: uuid.UUID,
+    label: LabelUpdate,
 ) -> Label:
     db_label = await session.get(Label, label_id)
     if not db_label or db_label.owner_id != current_user.id:
@@ -78,7 +78,7 @@ async def delete_label(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    label_id: Annotated[uuid.UUID, Path()],
+    label_id: uuid.UUID,
 ) -> None:
     label = await session.get(Label, label_id)
     if not label or label.owner_id != current_user.id:
