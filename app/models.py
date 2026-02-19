@@ -7,6 +7,28 @@ from typing import Annotated
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field
 
 
+def check_hex_color(color: str | None) -> str | None:
+    if color is None:
+        return None
+    if not re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", color):
+        raise ValueError("color must be in hex format (e.g., #fff or #ffffff)")
+    return color.lower()
+
+
+HexColor = Annotated[
+    str, Field(examples=["#fff", "#ffffff"]), AfterValidator(check_hex_color)
+]
+
+
+def check_due_date_is_future(due_date: datetime) -> datetime:
+    if due_date < datetime.now(tz=UTC):
+        raise ValueError("due_date must be in the future")
+    return due_date
+
+
+DueDate = Annotated[datetime, AfterValidator(check_due_date_is_future)]
+
+
 class UserBase(BaseModel):
     username: str
     email: EmailStr
@@ -29,26 +51,14 @@ class Token(BaseModel):
     token_type: str
 
 
-def check_hex_color(color: str | None) -> str | None:
-    if color is None:
-        return None
-    if not re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", color):
-        raise ValueError("color must be in hex format (e.g., #fff or #ffffff)")
-    return color.lower()
-
-
 class ProjectCreate(BaseModel):
     title: Annotated[str, Field(min_length=1, max_length=255)]
-    color: Annotated[
-        str | None, Field(examples=["#fff", "#ffffff"]), AfterValidator(check_hex_color)
-    ] = None
+    color: HexColor | None = None
 
 
 class ProjectUpdate(BaseModel):
     title: Annotated[str | None, Field(max_length=255)] = None
-    color: Annotated[
-        str | None, Field(examples=["#fff", "#ffffff"]), AfterValidator(check_hex_color)
-    ] = None
+    color: HexColor | None = None
 
 
 class ProjectPublic(BaseModel):
@@ -60,32 +70,22 @@ class ProjectPublic(BaseModel):
     created_at: datetime
 
 
-def check_due_date_is_future(due_date: datetime | None) -> datetime | None:
-    if due_date is not None and due_date < datetime.now(tz=UTC):
-        raise ValueError("due_date must be in the future")
-    return due_date
-
-
-class TaskCreate(BaseModel):
-    title: Annotated[str, Field(min_length=1, max_length=255)]
+class TaskBase(BaseModel):
     description: Annotated[str | None, Field(max_length=500)] = None
+    due_date: DueDate | None = None
+    project_id: int | None = None
+
+
+class TaskCreate(TaskBase):
+    title: Annotated[str, Field(min_length=1, max_length=255)]
     priority: Annotated[int, Field(ge=1, le=5)] = 1
     completed: bool = False
-    due_date: Annotated[datetime | None, AfterValidator(check_due_date_is_future)] = (
-        None
-    )
-    project_id: int | None = None
 
 
-class TaskUpdate(BaseModel):
+class TaskUpdate(TaskBase):
     title: Annotated[str | None, Field(max_length=255)] = None
-    description: Annotated[str | None, Field(max_length=500)] = None
     priority: Annotated[int | None, Field(ge=1, le=5)] = None
     completed: bool | None = None
-    due_date: Annotated[datetime | None, AfterValidator(check_due_date_is_future)] = (
-        None
-    )
-    project_id: int | None = None
 
 
 class TaskPublic(BaseModel):
@@ -96,7 +96,7 @@ class TaskPublic(BaseModel):
     description: str | None
     priority: Annotated[int, Field(ge=1, le=5)]
     completed: bool
-    due_date: datetime | None
+    due_date: DueDate | None
     project_id: int | None
 
 
@@ -114,9 +114,7 @@ class TaskPublicWithProjectLabels(TaskPublicWithProject, TaskPublicWithLabels):
 
 class LabelBase(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=50)]
-    color: Annotated[
-        str | None, Field(examples=["#fff", "#ffffff"]), AfterValidator(check_hex_color)
-    ] = None
+    color: HexColor | None = None
 
 
 class LabelCreate(LabelBase):
@@ -125,7 +123,7 @@ class LabelCreate(LabelBase):
 
 class LabelUpdate(BaseModel):
     name: Annotated[str | None, Field(max_length=50)] = None
-    color: Annotated[str | None, AfterValidator(check_hex_color)] = None
+    color: HexColor | None = None
 
 
 class LabelPublic(LabelBase):
