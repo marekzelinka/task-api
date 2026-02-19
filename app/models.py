@@ -25,8 +25,6 @@ class UserCreate(UserBase):
 
 class UserPublic(UserBase):
     id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
 
 
 class Token(SQLModel):
@@ -57,7 +55,6 @@ class ProjectCreate(ProjectBase):
 class ProjectPublic(ProjectBase):
     id: uuid.UUID
     created_at: datetime
-    updated_at: datetime
 
 
 class ProjectPublicWithTasks(ProjectPublic):
@@ -119,7 +116,6 @@ class TaskCreate(TaskBase):
 class TaskPublic(TaskBase):
     id: uuid.UUID
     created_at: datetime
-    updated_at: datetime
 
 
 class TaskPublicWithProject(TaskPublic):
