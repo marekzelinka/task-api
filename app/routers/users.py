@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
-from sqlmodel import col, select
+from sqlalchemy import select
 
 from app.core.security import hash_password
 from app.deps import CurrentUserDep, SessionDep
@@ -16,7 +16,7 @@ async def create_user(
     user: UserCreate,
 ) -> User:
     duplicate_username_user = await session.scalar(
-        select(User).where(col(User.username).ilike(user.username))
+        select(User).where(User.username.ilike(user.username))
     )
     if duplicate_username_user:
         raise HTTPException(
@@ -25,7 +25,7 @@ async def create_user(
         )
 
     duplicate_email_user = await session.scalar(
-        select(User).where(col(User.email).ilike(user.email))
+        select(User).where(User.email.ilike(user.email))
     )
     if duplicate_email_user:
         raise HTTPException(

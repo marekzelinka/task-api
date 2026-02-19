@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import col, select
+from sqlalchemy import select
 
 from app.core.security import create_access_token, verify_password
 from app.deps import SessionDep
@@ -19,7 +19,7 @@ async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
     user = await session.scalar(
-        select(User).where(col(User.username).ilike(form_data.username))
+        select(User).where(User.username.ilike(form_data.username))
     )
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(

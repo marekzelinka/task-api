@@ -35,11 +35,11 @@ class Token(BaseModel):
 
 
 class ProjectCreate(BaseModel):
-    title: str
+    title: Annotated[str, Field(min_length=1, max_length=255)]
 
 
 class ProjectUpdate(BaseModel):
-    title: str | None = None
+    title: Annotated[str | None, Field(max_length=255)] = None
 
 
 class ProjectPublic(BaseModel):
@@ -57,8 +57,8 @@ def check_due_date_is_future(due_date: datetime | None) -> datetime | None:
 
 
 class TaskCreate(BaseModel):
-    title: str
-    description: str | None = None
+    title: Annotated[str, Field(min_length=1, max_length=255)]
+    description: Annotated[str | None, Field(max_length=500)] = None
     priority: Annotated[int, Field(ge=1, le=5)] = 1
     completed: bool = False
     due_date: Annotated[datetime | None, AfterValidator(check_due_date_is_future)] = (
@@ -68,8 +68,8 @@ class TaskCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
-    title: str | None = None
-    description: str | None = None
+    title: Annotated[str | None, Field(max_length=255)] = None
+    description: Annotated[str | None, Field(max_length=500)] = None
     priority: Annotated[int | None, Field(ge=1, le=5)] = None
     completed: bool | None = None
     due_date: Annotated[datetime | None, AfterValidator(check_due_date_is_future)] = (
@@ -103,7 +103,7 @@ class TaskPublicWithProjectLabels(TaskPublicWithProject, TaskPublicWithLabels):
 
 
 class LabelBase(BaseModel):
-    name: str
+    name: Annotated[str, Field(min_length=1, max_length=50)]
 
 
 class LabelCreate(LabelBase):
@@ -111,7 +111,7 @@ class LabelCreate(LabelBase):
 
 
 class LabelUpdate(BaseModel):
-    name: str | None = None
+    name: Annotated[str | None, Field(max_length=50)] = None
 
 
 class LabelPublic(LabelBase):

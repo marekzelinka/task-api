@@ -3,8 +3,8 @@ from datetime import UTC, datetime, time
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload
-from sqlmodel import col, select
 
 from app.deps import CurrentUserDep, SessionDep
 from app.models import (
@@ -129,9 +129,7 @@ async def read_upcomming_tasks(
         query = query.where(Task.priority == priority)
 
     tasks = await session.scalars(
-        query.order_by(col(Task.due_date).asc().nulls_last())
-        .offset(offset)
-        .limit(limit)
+        query.order_by(Task.due_date.asc().nulls_last()).offset(offset).limit(limit)
     )
 
     return tasks.all()

@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
@@ -31,7 +38,7 @@ class Project(Base):
     __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(index=True)
+    title: Mapped[str] = mapped_column(String(length=255), index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -56,10 +63,13 @@ class TaskLabel(Base):
 
 class Task(Base):
     __tablename__ = "tasks"
+    __table_args = (
+        CheckConstraint("priority >= 1 AND priority <= 5", name="check_priority_range"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(index=True)
-    description: Mapped[str | None] = mapped_column(default=None)
+    title: Mapped[str] = mapped_column(String(length=255), index=True)
+    description: Mapped[str | None] = mapped_column(String(length=500), default=None)
     priority: Mapped[int] = mapped_column(default=1)
     completed: Mapped[bool] = mapped_column(default=False)
     due_date: Mapped[datetime | None] = mapped_column(
@@ -85,7 +95,7 @@ class Label(Base):
     __table_args__ = (UniqueConstraint("name", "owner_id", name="uq_label_name_owner"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(index=True)
+    name: Mapped[str] = mapped_column(String(length=50), index=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
     owner: Mapped[User] = relationship(back_populates="labels")

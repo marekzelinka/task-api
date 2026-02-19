@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlmodel import select
+from sqlalchemy import select
 
 from app.deps import CurrentUserDep, SessionDep
 from app.models import LabelCreate, LabelPublic, LabelUpdate

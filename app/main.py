@@ -6,7 +6,7 @@ from app.routers import auth, labels, projects, tasks, users
 
 app = FastAPI(
     title="Task Management API",
-    description="API for managing tasks with FastAPI, SQLModel, and Pydantic.",
+    description="API for managing tasks with FastAPI, SQLAlchemy, and Pydantic.",
     version="0.1.0",
 )
 

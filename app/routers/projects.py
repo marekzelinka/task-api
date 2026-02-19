@@ -2,8 +2,8 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from sqlmodel import select
 
 from app.deps import CurrentUserDep, SessionDep
 from app.models import (

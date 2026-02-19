@@ -2,8 +2,8 @@ from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from sqlmodel import col, select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import async_session
 from app.core.security import oauth2_scheme, verify_token
@@ -31,7 +31,7 @@ async def get_current_user(token: TokenDep, session: SessionDep) -> User:
     if username is None:
         raise credentials_exception
 
-    user = await session.scalar(select(User).where(col(User.username).ilike(username)))
+    user = await session.scalar(select(User).where(User.username.ilike(username)))
     if not user:
         raise credentials_exception
 
