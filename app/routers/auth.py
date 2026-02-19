@@ -6,7 +6,8 @@ from sqlmodel import col, select
 
 from app.core.security import create_access_token, verify_password
 from app.deps import SessionDep
-from app.models import Token, User
+from app.models import Token
+from app.schema import User
 
 router = APIRouter(tags=["auth"])
 

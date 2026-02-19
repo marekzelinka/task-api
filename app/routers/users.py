@@ -3,7 +3,8 @@ from sqlmodel import col, select
 
 from app.core.security import hash_password
 from app.deps import CurrentUserDep, SessionDep
-from app.models import User, UserCreate, UserPublic
+from app.models import UserCreate, UserPublic
+from app.schema import User
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -28,23 +29,22 @@ async def create_user(
     )
     if duplicate_email_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already exists",
         )
 
-    new_user = User.model_validate(
-        user.model_dump(exclude={"email", "password"}),
-        update={
-            "email": user.email.lower(),
-            "hashed_password": hash_password(user.password),
-        },
+    db_user = User(
+        **user.model_dump(exclude={"email", "password"}),
+        email=user.email.lower(),
+        hashed_password=hash_password(user.password),
     )
 
-    session.add(new_user)
+    session.add(db_user)
 
     await session.commit()
-    await session.refresh(new_user)
+    await session.refresh(db_user)
 
-    return new_user
+    return db_user
 
 
 @router.get("/me", response_model=UserPublic)

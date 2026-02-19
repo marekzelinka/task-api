@@ -6,14 +6,12 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
+from app.core.config import config as app_config
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-from app.core.config import config as app_core_config
-
 config = context.config
-config.set_main_option("sqlalchemy.url", str(app_core_config.sqlalchemy_database_uri))
-
+config.set_main_option("sqlalchemy.url", str(app_config.sqlalchemy_database_uri))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -24,9 +22,9 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from app.models import SQLModel  # noqa: E402
+from app.schema import Base  # noqa: E402
 
-target_metadata = SQLModel.metadata
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -59,11 +57,7 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        user_module_prefix="sqlmodel.sql.sqltypes.",
-    )
+    context.configure(connection=connection, target_metadata=target_metadata)
 
     with context.begin_transaction():
         context.run_migrations()

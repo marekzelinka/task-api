@@ -1,22 +1,20 @@
-import uuid
+from __future__ import annotations
+
 from datetime import UTC, datetime
+from typing import Annotated
 
-from pydantic import EmailStr, field_validator
-from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+)
 
 
-class UserBase(SQLModel):
-    username: str = Field(unique=True, index=True)
-    email: EmailStr = Field(unique=True, index=True)
-
-
-class User(UserBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    hashed_password: str
-
-    tasks: list[Task] = Relationship(back_populates="owner", cascade_delete=True)
-    projects: list[Project] = Relationship(back_populates="owner", cascade_delete=True)
-    labels: list[Label] = Relationship(back_populates="owner", cascade_delete=True)
+class UserBase(BaseModel):
+    username: str
+    email: EmailStr
 
 
 class UserCreate(UserBase):
@@ -24,98 +22,72 @@ class UserCreate(UserBase):
 
 
 class UserPublic(UserBase):
-    id: uuid.UUID
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
 
 
-class Token(SQLModel):
+class Token(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     access_token: str
     token_type: str
 
 
-class ProjectBase(SQLModel):
-    title: str = Field(index=True)
+class ProjectCreate(BaseModel):
+    title: str
 
 
-class Project(ProjectBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=UTC),
-        sa_column=Column(DateTime(timezone=True), nullable=False),
-    )
-    owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
-
-    owner: User = Relationship(back_populates="projects")
-    tasks: list[Task] = Relationship(back_populates="project", cascade_delete=True)
-
-
-class ProjectCreate(ProjectBase):
-    pass
-
-
-class ProjectPublic(ProjectBase):
-    id: uuid.UUID
-    created_at: datetime
-
-
-class ProjectPublicWithTasks(ProjectPublic):
-    tasks: list[TaskPublic] = []
-
-
-class ProjectUpdate(SQLModel):
+class ProjectUpdate(BaseModel):
     title: str | None = None
 
 
-class TaskLabelLink(SQLModel, table=True):
-    task_id: uuid.UUID = Field(
-        foreign_key="task.id", primary_key=True, ondelete="CASCADE"
-    )
-    label_id: uuid.UUID = Field(
-        foreign_key="label.id", primary_key=True, ondelete="CASCADE"
-    )
+class ProjectPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
-
-class TaskBase(SQLModel):
-    title: str = Field(index=True)
-    description: str | None = Field(default=None)
-    priority: int = Field(default=1, ge=1, le=5)
-    completed: bool = Field(default=False)
-    due_date: datetime | None = Field(
-        default=None, sa_column=Column(DateTime(timezone=True), index=True)
-    )
-    project_id: uuid.UUID | None = Field(default=None, foreign_key="project.id")
-
-
-class Task(TaskBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=UTC),
-        sa_column=Column(DateTime(timezone=True), nullable=False),
-    )
-    owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
-    project_id: uuid.UUID | None = Field(
-        default=None, foreign_key="project.id", ondelete="CASCADE"
-    )
-
-    owner: User = Relationship(back_populates="tasks")
-    project: Project | None = Relationship(back_populates="tasks")
-    labels: list[Label] = Relationship(
-        back_populates="tasks",
-        link_model=TaskLabelLink,
-    )
-
-
-class TaskCreate(TaskBase):
-    @field_validator("due_date")
-    @classmethod
-    def check_due_date_is_future(cls, v: datetime | None) -> datetime | None:
-        if v is not None and v < datetime.now(tz=UTC):
-            raise ValueError("due_date must be in the future")
-        return v
-
-
-class TaskPublic(TaskBase):
-    id: uuid.UUID
+    id: int
+    title: str
     created_at: datetime
+
+
+def check_due_date_is_future(due_date: datetime | None) -> datetime | None:
+    if due_date is not None and due_date < datetime.now(tz=UTC):
+        raise ValueError("due_date must be in the future")
+    return due_date
+
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str | None = None
+    priority: Annotated[int, Field(ge=1, le=5)] = 1
+    completed: bool = False
+    due_date: Annotated[datetime | None, AfterValidator(check_due_date_is_future)] = (
+        None
+    )
+    project_id: int | None = None
+
+
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    priority: Annotated[int | None, Field(ge=1, le=5)] = None
+    completed: bool | None = None
+    due_date: Annotated[datetime | None, AfterValidator(check_due_date_is_future)] = (
+        None
+    )
+    project_id: int | None = None
+
+
+class TaskPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    description: str | None
+    priority: Annotated[int, Field(ge=1, le=5)]
+    completed: bool
+    due_date: datetime | None
+    project_id: int | None
 
 
 class TaskPublicWithProject(TaskPublic):
@@ -130,38 +102,23 @@ class TaskPublicWithProjectLabels(TaskPublicWithProject, TaskPublicWithLabels):
     pass
 
 
-class TaskUpdate(SQLModel):
-    title: str | None = None
-    description: str | None = None
-    priority: int | None = Field(default=None, ge=1, le=5)
-    completed: bool | None = None
-    due_date: datetime | None = Field(default=None)
-    project_id: uuid.UUID | None = None
-
-
-class LabelBase(SQLModel):
-    name: str = Field(unique=True, index=True)
-
-
-class Label(LabelBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE")
-
-    owner: User = Relationship(back_populates="labels")
-    tasks: list[Task] = Relationship(back_populates="labels", link_model=TaskLabelLink)
+class LabelBase(BaseModel):
+    name: str
 
 
 class LabelCreate(LabelBase):
     pass
 
 
+class LabelUpdate(BaseModel):
+    name: str | None = None
+
+
 class LabelPublic(LabelBase):
-    id: uuid.UUID
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
 
 
 class LabelPublicWithTasks(LabelPublic):
     tasks: list[TaskPublic] = []
-
-
-class LabelUpdate(SQLModel):
-    name: str | None = None

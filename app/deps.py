@@ -7,7 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import async_session
 from app.core.security import oauth2_scheme, verify_token
-from app.models import User
+from app.schema import User
 
 TokenDep = Annotated[str, Depends(oauth2_scheme)]
 

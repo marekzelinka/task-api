@@ -1,18 +1,18 @@
-import uuid
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from app.deps import CurrentUserDep, SessionDep
 from app.models import (
-    Project,
     ProjectCreate,
     ProjectPublic,
-    ProjectPublicWithTasks,
     ProjectUpdate,
+    TaskPublic,
 )
+from app.schema import Project, Task
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -24,7 +24,7 @@ async def create_project(
     current_user: CurrentUserDep,
     project: ProjectCreate,
 ) -> Project:
-    db_project = Project.model_validate(project, update={"owner_id": current_user.id})
+    db_project = Project(**project.model_dump(), owner_id=current_user.id)
 
     session.add(db_project)
 
@@ -42,15 +42,14 @@ async def read_projects(
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(gt=0)] = 100,
 ) -> Sequence[Project]:
-    results = await session.scalars(
+    projects = await session.scalars(
         select(Project)
         .where(Project.owner_id == current_user.id)
         .offset(offset)
         .limit(limit)
     )
-    projects = results.all()
 
-    return projects
+    return projects.all()
 
 
 @router.get("/{project_id}", response_model=ProjectPublic)
@@ -58,31 +57,35 @@ async def read_project(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    project_id: uuid.UUID,
+    project_id: int,
 ) -> Project:
     project = await session.get(Project, project_id)
     if not project or project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
         )
 
     return project
 
 
-@router.get("/{project_id}/tasks", response_model=ProjectPublicWithTasks)
+@router.get("/{project_id}/tasks", response_model=list[TaskPublic])
 async def read_project_tasks(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    project_id: uuid.UUID,
-) -> Project:
-    project = await session.get(Project, project_id)
+    project_id: int,
+) -> list[Task]:
+    project = await session.get(
+        Project, project_id, options=[selectinload(Project.tasks)]
+    )
     if not project or project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
         )
 
-    return project
+    return project.tasks
 
 
 @router.patch("/{project_id}", response_model=ProjectPublic)
@@ -90,19 +93,19 @@ async def update_project(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    project_id: uuid.UUID,
+    project_id: int,
     project: ProjectUpdate,
 ) -> Project:
     db_project = await session.get(Project, project_id)
     if not db_project or db_project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
         )
 
-    project_data = project.model_dump(exclude_unset=True)
-    db_project.sqlmodel_update(project_data)
-
-    session.add(db_project)
+    update_data = project.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_project, field, value)
 
     await session.commit()
     await session.refresh(db_project)
@@ -115,12 +118,13 @@ async def delete_project(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    project_id: Annotated[uuid.UUID, Path()],
+    project_id: int,
 ) -> None:
     project = await session.get(Project, project_id)
     if not project or project.owner_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
         )
 
     await session.delete(project)

@@ -1,4 +1,3 @@
-import uuid
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -6,7 +5,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import select
 
 from app.deps import CurrentUserDep, SessionDep
-from app.models import Label, LabelCreate, LabelPublic, LabelUpdate
+from app.models import LabelCreate, LabelPublic, LabelUpdate
+from app.schema import Label
 
 router = APIRouter(prefix="/labels", tags=["labels"])
 
@@ -18,7 +18,7 @@ async def create_label(
     current_user: CurrentUserDep,
     label: LabelCreate,
 ) -> Label:
-    db_label = Label.model_validate(label, update={"owner_id": current_user.id})
+    db_label = Label(**label.model_dump(), owner_id=current_user.id)
 
     session.add(db_label)
 
@@ -53,7 +53,7 @@ async def update_label(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    label_id: uuid.UUID,
+    label_id: int,
     label: LabelUpdate,
 ) -> Label:
     db_label = await session.get(Label, label_id)
@@ -62,10 +62,9 @@ async def update_label(
             status_code=status.HTTP_404_NOT_FOUND, detail="Label not found"
         )
 
-    label_data = label.model_dump(exclude_unset=True)
-    db_label.sqlmodel_update(label_data)
-
-    session.add(db_label)
+    update_data = label.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_label, field, value)
 
     await session.commit()
     await session.refresh(db_label)
@@ -78,7 +77,7 @@ async def delete_label(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    label_id: uuid.UUID,
+    label_id: int,
 ) -> None:
     label = await session.get(Label, label_id)
     if not label or label.owner_id != current_user.id:

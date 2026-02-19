@@ -22,22 +22,24 @@ def parse_cors(v: str | list[str] | None) -> list[str] | str:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
-    pg_host: str
-    pg_database: str
-    pg_user: str
-    pg_password: str
+    # Database
+    pghost: str
+    pgdatabase: str
+    pguser: str
+    pgpassword: str
 
     @computed_field
     @property
     def sqlalchemy_database_uri(self) -> PostgresDsn:
         return PostgresDsn.build(
             scheme="postgresql+asyncpg",
-            username=self.pg_user,
-            password=self.pg_password,
-            host=self.pg_host,
-            path=self.pg_database,
+            username=self.pguser,
+            password=self.pgpassword,
+            host=self.pghost,
+            path=self.pgdatabase,
         )
 
+    # CORS
     cors_origins: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
 
     @computed_field
@@ -45,6 +47,7 @@ class Settings(BaseSettings):
     def all_cors_origins(self) -> list[str]:
         return [str(origin).rstrip("/") for origin in self.cors_origins]
 
+    # Auth
     secret_key: SecretStr
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
