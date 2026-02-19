@@ -22,7 +22,7 @@ HexColor = Annotated[
 
 def check_due_date_is_future(due_date: datetime) -> datetime:
     if due_date < datetime.now(tz=UTC):
-        raise ValueError("due_date must be in the future")
+        raise ValueError("date must be in the future")
     return due_date
 
 
