@@ -50,7 +50,7 @@ async def create_task(
     status_code=status.HTTP_201_CREATED,
     response_model=TaskPublicWithProjectLabels,
 )
-async def create_task_duplicate(
+async def create_duplicate_task(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
