@@ -7,7 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import async_session
 from app.core.security import oauth2_scheme, verify_token
+from app.models import PaginationParams
 from app.schema import User
+
+PaginationParamsDep = Annotated[PaginationParams, Depends()]
+
 
 TokenDep = Annotated[str, Depends(oauth2_scheme)]
 

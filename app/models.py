@@ -29,6 +29,28 @@ def check_due_date_is_future(due_date: datetime) -> datetime:
 DueDate = Annotated[datetime, AfterValidator(check_due_date_is_future)]
 
 
+class Paged[SchemaType](BaseModel):
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+
+    page: int
+    per_page: int
+    total: int
+    results: list[SchemaType]
+
+
+class PaginationParams(BaseModel):
+    page: Annotated[int, Field(ge=1)] = 1
+    per_page: Annotated[int, Field(ge=1, le=100)] = 10
+
+    @property
+    def offset(self) -> int:
+        return (self.page - 1) * self.per_page
+
+    @property
+    def limit(self) -> int:
+        return self.per_page
+
+
 class UserBase(BaseModel):
     username: str
     email: EmailStr

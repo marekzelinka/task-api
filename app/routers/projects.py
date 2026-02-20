@@ -1,12 +1,9 @@
-from collections.abc import Sequence
-from typing import Annotated
+from fastapi import APIRouter, HTTPException, status
+from sqlalchemy import func, select
 
-from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-
-from app.deps import CurrentUserDep, SessionDep
+from app.deps import CurrentUserDep, PaginationParamsDep, SessionDep
 from app.models import (
+    Paged,
     ProjectCreate,
     ProjectPublic,
     ProjectUpdate,
@@ -34,22 +31,24 @@ async def create_project(
     return db_project
 
 
-@router.get("", response_model=list[ProjectPublic])
+@router.get("", response_model=Paged[ProjectPublic])
 async def read_projects(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(gt=0)] = 100,
-) -> Sequence[Project]:
-    projects = await session.scalars(
-        select(Project)
-        .where(Project.owner_id == current_user.id)
-        .offset(offset)
-        .limit(limit)
-    )
+    paging: PaginationParamsDep,
+) -> Paged[Project]:
+    query = select(Project).where(Project.owner_id == current_user.id)
 
-    return projects.all()
+    total = await session.execute(select(func.count()).select_from(query.subquery()))
+    projects = await session.scalars(query.offset(paging.offset).limit(paging.limit))
+
+    return Paged(
+        page=paging.page,
+        per_page=paging.per_page,
+        total=total.scalar_one(),
+        results=projects.all(),
+    )
 
 
 @router.get("/{project_id}", response_model=ProjectPublic)
@@ -69,23 +68,32 @@ async def read_project(
     return project
 
 
-@router.get("/{project_id}/tasks", response_model=list[TaskPublic])
+@router.get("/{project_id}/tasks", response_model=Paged[TaskPublic])
 async def read_project_tasks(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
     project_id: int,
-) -> list[Task]:
-    project = await session.get(
-        Project, project_id, options=[selectinload(Project.tasks)]
-    )
+    paging: PaginationParamsDep,
+) -> Paged[Task]:
+    project = await session.get(Project, project_id)
     if not project or project.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
 
-    return project.tasks
+    query = select(Task).where(Task.project_id == project_id)
+
+    total = await session.execute(select(func.count()).select_from(query.subquery()))
+    tasks = await session.scalars(query.offset(paging.offset).limit(paging.limit))
+
+    return Paged(
+        page=paging.page,
+        per_page=paging.per_page,
+        total=total.scalar_one(),
+        results=tasks.all(),
+    )
 
 
 @router.patch("/{project_id}", response_model=ProjectPublic)

@@ -1,12 +1,8 @@
-from collections.abc import Sequence
-from typing import Annotated
+from fastapi import APIRouter, HTTPException, status
+from sqlalchemy import func, select
 
-from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-
-from app.deps import CurrentUserDep, SessionDep
-from app.models import LabelCreate, LabelPublic, LabelUpdate, TaskPublic
+from app.deps import CurrentUserDep, PaginationParamsDep, SessionDep
+from app.models import LabelCreate, LabelPublic, LabelUpdate, Paged, TaskPublic
 from app.schema import Label, Task
 
 router = APIRouter(prefix="/labels", tags=["labels"])
@@ -35,38 +31,53 @@ async def create_label(
     return db_label
 
 
-@router.get("", response_model=list[LabelPublic])
+@router.get("", response_model=Paged[LabelPublic])
 async def read_labels(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(gt=0)] = 100,
+    paging: PaginationParamsDep,
     # TODO: add filter query `q`, to fetch labels where name contains `q`
-) -> Sequence[Label]:
-    results = await session.scalars(
-        select(Label)
-        .where(Label.owner_id == current_user.id)
-        .offset(offset)
-        .limit(limit)
+) -> Paged[Label]:
+    query = select(Label).where(Label.owner_id == current_user.id)
+
+    total = await session.execute(select(func.count()).select_from(query.subquery()))
+    labels = await session.scalars(query.offset(paging.offset).limit(paging.limit))
+
+    return Paged(
+        page=paging.page,
+        per_page=paging.per_page,
+        total=total.scalar_one(),
+        results=labels.all(),
     )
-    labels = results.all()
-
-    return labels
 
 
-@router.get("/{label_id}/tasks", response_model=list[TaskPublic])
+@router.get("/{label_id}/tasks", response_model=Paged[TaskPublic])
 async def read_label_tasks(
-    *, session: SessionDep, current_user: CurrentUserDep, label_id: int
-) -> Sequence[Task]:
-    label = await session.get(Label, label_id, options=[selectinload(Label.tasks)])
+    *,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    label_id: int,
+    paging: PaginationParamsDep,
+) -> Paged[Task]:
+    label = await session.get(Label, label_id)
     if not label or label.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found",
         )
 
-    return label.tasks
+    query = select(Task).where(Task.labels.any(Label.id == label_id))
+
+    total = await session.execute(select(func.count()).select_from(query.subquery()))
+    tasks = await session.scalars(query.offset(paging.offset).limit(paging.limit))
+
+    return Paged(
+        page=paging.page,
+        per_page=paging.per_page,
+        total=total.scalar_one(),
+        results=tasks.all(),
+    )
 
 
 @router.patch("/{label_id}", response_model=LabelPublic)

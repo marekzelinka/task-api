@@ -1,13 +1,13 @@
-from collections.abc import Sequence
 from datetime import UTC, datetime, time
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.deps import CurrentUserDep, SessionDep
+from app.deps import CurrentUserDep, PaginationParamsDep, SessionDep
 from app.models import (
+    Paged,
     TaskCreate,
     TaskPublic,
     TaskPublicWithLabels,
@@ -87,36 +87,40 @@ async def create_duplicate_task(
     return db_task
 
 
-@router.get("", response_model=list[TaskPublic])
+@router.get("", response_model=Paged[TaskPublic])
 async def read_tasks(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(gt=0)] = 100,
+    paging: PaginationParamsDep,
     completed: Annotated[bool | None, Query()] = None,
     priority: Annotated[int | None, Query(ge=1, le=5)] = None,
-) -> Sequence[Task]:
+) -> Paged[Task]:
     query = select(Task).where(Task.owner_id == current_user.id)
     if completed is not None:
         query = query.where(Task.completed == completed)
     if priority is not None:
         query = query.where(Task.priority == priority)
 
-    tasks = await session.scalars(query.offset(offset).limit(limit))
+    total = await session.execute(select(func.count()).select_from(query.subquery()))
+    tasks = await session.scalars(query.offset(paging.offset).limit(paging.limit))
 
-    return tasks.all()
+    return Paged(
+        page=paging.page,
+        per_page=paging.per_page,
+        total=total.scalar_one(),
+        results=tasks.all(),
+    )
 
 
-@router.get("/upcomming", response_model=list[TaskPublic])
+@router.get("/upcomming", response_model=Paged[TaskPublic])
 async def read_upcomming_tasks(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(gt=0)] = 100,
+    paging: PaginationParamsDep,
     priority: Annotated[int | None, Query(ge=1, le=5)] = None,
-) -> Sequence[Task]:
+) -> Paged[Task]:
     now = datetime.now(tz=UTC)
 
     query = (
@@ -128,22 +132,29 @@ async def read_upcomming_tasks(
     if priority is not None:
         query = query.where(Task.priority == priority)
 
+    total = await session.execute(select(func.count()).select_from(query.subquery()))
     tasks = await session.scalars(
-        query.order_by(Task.due_date.asc().nulls_last()).offset(offset).limit(limit)
+        query.order_by(Task.due_date.asc().nulls_last())
+        .offset(paging.offset)
+        .limit(paging.limit)
     )
 
-    return tasks.all()
+    return Paged(
+        page=paging.page,
+        per_page=paging.per_page,
+        total=total.scalar_one(),
+        results=tasks.all(),
+    )
 
 
-@router.get("/today", response_model=list[TaskPublic])
+@router.get("/today", response_model=Paged[TaskPublic])
 async def read_due_today_tasks(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(gt=0)] = 100,
+    paging: PaginationParamsDep,
     priority: Annotated[int | None, Query(ge=1, le=5)] = None,
-) -> Sequence[Task]:
+) -> Paged[Task]:
     now = datetime.now(tz=UTC)
     today_end = datetime.combine(now.date(), time.max, tzinfo=UTC)
     today_start = datetime.combine(now.date(), time.min, tzinfo=UTC)
@@ -157,20 +168,25 @@ async def read_due_today_tasks(
     if priority is not None:
         query = query.where(Task.priority == priority)
 
-    tasks = await session.scalars(query.offset(offset).limit(limit))
+    total = await session.execute(select(func.count()).select_from(query.subquery()))
+    tasks = await session.scalars(query.offset(paging.offset).limit(paging.limit))
 
-    return tasks.all()
+    return Paged(
+        page=paging.page,
+        per_page=paging.per_page,
+        total=total.scalar_one(),
+        results=tasks.all(),
+    )
 
 
-@router.get("/overdue", response_model=list[TaskPublic])
+@router.get("/overdue", response_model=Paged[TaskPublic])
 async def read_overdue_tasks(
     *,
     session: SessionDep,
     current_user: CurrentUserDep,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(gt=0)] = 100,
+    paging: PaginationParamsDep,
     priority: Annotated[int | None, Query(ge=1, le=5)] = None,
-) -> Sequence[Task]:
+) -> Paged[Task]:
     now = datetime.now(tz=UTC)
 
     query = (
@@ -182,9 +198,15 @@ async def read_overdue_tasks(
     if priority is not None:
         query = query.where(Task.priority == priority)
 
-    tasks = await session.scalars(query.offset(offset).limit(limit))
+    total = await session.execute(select(func.count()).select_from(query.subquery()))
+    tasks = await session.scalars(query.offset(paging.offset).limit(paging.limit))
 
-    return tasks.all()
+    return Paged(
+        page=paging.page,
+        per_page=paging.per_page,
+        total=total.scalar_one(),
+        results=tasks.all(),
+    )
 
 
 @router.get("/{task_id}", response_model=TaskPublicWithProjectLabels)
