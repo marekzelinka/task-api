@@ -3,10 +3,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.deps import CurrentUserDep, SessionDep
-from app.models import LabelCreate, LabelPublic, LabelUpdate
-from app.schema import Label
+from app.models import LabelCreate, LabelPublic, LabelUpdate, TaskPublic
+from app.schema import Label, Task
 
 router = APIRouter(prefix="/labels", tags=["labels"])
 
@@ -52,6 +53,20 @@ async def read_labels(
     labels = results.all()
 
     return labels
+
+
+@router.get("/{label_id}/tasks", response_model=list[TaskPublic])
+async def read_label_tasks(
+    *, session: SessionDep, current_user: CurrentUserDep, label_id: int
+) -> Sequence[Task]:
+    label = await session.get(Label, label_id, options=[selectinload(Label.tasks)])
+    if not label or label.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
+    return label.tasks
 
 
 @router.patch("/{label_id}", response_model=LabelPublic)
